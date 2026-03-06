@@ -4,8 +4,32 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
 import StepEditor, { type StepData } from "./StepEditor";
-import type { Category, SOPImportance, SOPStatus } from "@/lib/types";
-import { Loader2, Save, Eye } from "lucide-react";
+import type {
+  Category,
+  SOPImportance,
+  SOPStatus,
+  SOPType,
+  SOPListItemType,
+} from "@/lib/types";
+import { Loader2, Save, Eye, Plus, Trash2, GripVertical } from "lucide-react";
+
+interface IngredientRow {
+  id: string;
+  name: string;
+  amount: string;
+  unit: string;
+}
+
+interface ListItemRow {
+  id: string;
+  label: string;
+}
+
+interface BehaviorRow {
+  id: string;
+  trigger_title: string;
+  response_content: string;
+}
 
 interface SOPFormProps {
   sopId?: string;
@@ -21,37 +45,66 @@ const SOPForm = ({ sopId }: SOPFormProps) => {
   const [categoryId, setCategoryId] = useState("");
   const [importance, setImportance] = useState<SOPImportance>("medium");
   const [status, setStatus] = useState<SOPStatus>("draft");
+  const [sopType, setSopType] = useState<SOPType>("procedure");
   const [categories, setCategories] = useState<Category[]>([]);
   const [steps, setSteps] = useState<StepData[]>([
-    { id: "temp-1", title: "", content: "", tip: "", warning: "", media: [] },
+    { id: "temp-1", title: "", content: "", tip: "", warning: "", media: [], linked_sop_id: null },
   ]);
+  const [ingredients, setIngredients] = useState<IngredientRow[]>([]);
+  const [tools, setTools] = useState<ListItemRow[]>([]);
+  const [prereqs, setPrereqs] = useState<ListItemRow[]>([]);
+  const [behaviors, setBehaviors] = useState<BehaviorRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [currentTab, setCurrentTab] = useState<"info" | "steps">("info");
+  const [currentTab, setCurrentTab] = useState<"info" | "extras" | "steps">("info");
+  const [linkedSopOptions, setLinkedSopOptions] = useState<
+    { id: string; title: string; category?: { name: string; emoji: string } }[]
+  >([]);
 
   useEffect(() => {
     if (authLoading) return;
 
     const fetchData = async () => {
       try {
-        const { data: cats } = await supabase
-          .from("categories")
-          .select("*")
-          .order("sort_order");
-        setCategories(cats || []);
+        const [catsRes, sopsRes] = await Promise.all([
+          supabase.from("categories").select("*").order("sort_order"),
+          supabase
+            .from("sops")
+            .select("id, title, category:categories(name, emoji)")
+            .eq("status", "published")
+            .order("title"),
+        ]);
+        const cats = catsRes.data || [];
+        setCategories(cats);
+        setLinkedSopOptions((sopsRes.data || []) as { id: string; title: string; category?: { name: string; emoji: string } }[]);
 
         if (cats && cats.length > 0 && !categoryId) {
           setCategoryId(cats[0].id);
         }
 
         if (sopId) {
-          const [sopRes, stepsRes] = await Promise.all([
+          const [sopRes, stepsRes, ingRes, listRes, behRes] = await Promise.all([
             supabase.from("sops").select("*").eq("id", sopId).single(),
             supabase
               .from("sop_steps")
               .select("*, media:step_media(*)")
               .eq("sop_id", sopId)
               .order("step_number"),
+            supabase
+              .from("sop_ingredients")
+              .select("*")
+              .eq("sop_id", sopId)
+              .order("sort_order"),
+            supabase
+              .from("sop_list_items")
+              .select("*")
+              .eq("sop_id", sopId)
+              .order("sort_order"),
+            supabase
+              .from("sop_behaviors")
+              .select("*")
+              .eq("sop_id", sopId)
+              .order("sort_order"),
           ]);
 
           if (sopRes.data) {
@@ -60,22 +113,54 @@ const SOPForm = ({ sopId }: SOPFormProps) => {
             setCategoryId(sopRes.data.category_id);
             setImportance(sopRes.data.importance);
             setStatus(sopRes.data.status);
+            setSopType((sopRes.data.sop_type as SOPType) || "procedure");
           }
 
           if (stepsRes.data && stepsRes.data.length > 0) {
             setSteps(
-              stepsRes.data.map((s) => ({
+              stepsRes.data.map((s: { id: string; title: string; content: string; tip: string | null; warning: string | null; linked_sop_id: string | null; media?: { id: string; media_url: string; media_type: "image" | "video"; caption: string | null }[] }) => ({
                 id: s.id,
                 title: s.title,
                 content: s.content,
                 tip: s.tip || "",
                 warning: s.warning || "",
+                linked_sop_id: s.linked_sop_id ?? null,
                 media: (s.media || []).map((m: { id: string; media_url: string; media_type: "image" | "video"; caption: string | null }) => ({
                   id: m.id,
                   media_url: m.media_url,
                   media_type: m.media_type,
                   caption: m.caption || "",
                 })),
+              }))
+            );
+          }
+
+          if (ingRes.data?.length) {
+            setIngredients(
+              ingRes.data.map((r: { id: string; name: string; amount: string; unit: string | null }) => ({
+                id: r.id,
+                name: r.name,
+                amount: r.amount,
+                unit: r.unit || "",
+              }))
+            );
+          }
+          if (listRes.data?.length) {
+            const toolsList = listRes.data
+              .filter((r: { type: string }) => r.type === "tool")
+              .map((r: { id: string; label: string }) => ({ id: r.id, label: r.label }));
+            const prereqsList = listRes.data
+              .filter((r: { type: string }) => r.type === "prereq")
+              .map((r: { id: string; label: string }) => ({ id: r.id, label: r.label }));
+            if (toolsList.length) setTools(toolsList);
+            if (prereqsList.length) setPrereqs(prereqsList);
+          }
+          if (behRes.data?.length) {
+            setBehaviors(
+              behRes.data.map((r: { id: string; trigger_title: string; response_content: string }) => ({
+                id: r.id,
+                trigger_title: r.trigger_title,
+                response_content: r.response_content,
               }))
             );
           }
@@ -99,7 +184,8 @@ const SOPForm = ({ sopId }: SOPFormProps) => {
       description: description.trim() || null,
       category_id: categoryId,
       importance,
-      status: publishNow ? "published" as SOPStatus : status,
+      status: publishNow ? ("published" as SOPStatus) : status,
+      sop_type: sopType,
       created_by: user?.id,
     };
 
@@ -144,6 +230,7 @@ const SOPForm = ({ sopId }: SOPFormProps) => {
           content: step.content.trim(),
           tip: step.tip.trim() || null,
           warning: step.warning.trim() || null,
+          linked_sop_id: step.linked_sop_id || null,
         })
         .select("id")
         .single();
@@ -158,6 +245,42 @@ const SOPForm = ({ sopId }: SOPFormProps) => {
         }));
         await supabase.from("step_media").insert(mediaInserts);
       }
+    }
+
+    // Save ingredients (recipe)
+    await supabase.from("sop_ingredients").delete().eq("sop_id", savedSopId);
+    if (sopType === "recipe" && ingredients.length > 0) {
+      await supabase.from("sop_ingredients").insert(
+        ingredients.map((ing, j) => ({
+          sop_id: savedSopId,
+          sort_order: j,
+          name: ing.name.trim(),
+          amount: ing.amount.trim(),
+          unit: ing.unit.trim() || null,
+        }))
+      );
+    }
+
+    // Save list items (tools + prereqs)
+    await supabase.from("sop_list_items").delete().eq("sop_id", savedSopId);
+    const listInserts: { sop_id: string; type: SOPListItemType; label: string; sort_order: number }[] = [];
+    tools.forEach((t, j) => listInserts.push({ sop_id: savedSopId, type: "tool", label: t.label.trim(), sort_order: j }));
+    prereqs.forEach((p, j) => listInserts.push({ sop_id: savedSopId, type: "prereq", label: p.label.trim(), sort_order: j }));
+    if (listInserts.length > 0) {
+      await supabase.from("sop_list_items").insert(listInserts);
+    }
+
+    // Save behaviors (greeting_behavior)
+    await supabase.from("sop_behaviors").delete().eq("sop_id", savedSopId);
+    if (sopType === "greeting_behavior" && behaviors.length > 0) {
+      await supabase.from("sop_behaviors").insert(
+        behaviors.map((b, j) => ({
+          sop_id: savedSopId,
+          sort_order: j,
+          trigger_title: b.trigger_title.trim(),
+          response_content: b.response_content.trim(),
+        }))
+      );
     }
 
     setSaving(false);
@@ -176,10 +299,10 @@ const SOPForm = ({ sopId }: SOPFormProps) => {
   return (
     <div className="max-w-3xl mx-auto">
       {/* Tab switcher */}
-      <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 mb-6">
+      <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 mb-6 flex-wrap">
         <button
           onClick={() => setCurrentTab("info")}
-          className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
+          className={`flex-1 min-w-[100px] py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
             currentTab === "info"
               ? "bg-white text-gray-900 shadow-sm"
               : "text-gray-500 hover:text-gray-700"
@@ -187,9 +310,21 @@ const SOPForm = ({ sopId }: SOPFormProps) => {
         >
           📝 Basic Info
         </button>
+        {(sopType === "recipe" || sopType === "greeting_behavior") && (
+          <button
+            onClick={() => setCurrentTab("extras")}
+            className={`flex-1 min-w-[100px] py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
+              currentTab === "extras"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            {sopType === "recipe" ? "🥗 Ingredients & lists" : "💬 When this happens"}
+          </button>
+        )}
         <button
           onClick={() => setCurrentTab("steps")}
-          className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
+          className={`flex-1 min-w-[100px] py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
             currentTab === "steps"
               ? "bg-white text-gray-900 shadow-sm"
               : "text-gray-500 hover:text-gray-700"
@@ -252,6 +387,35 @@ const SOPForm = ({ sopId }: SOPFormProps) => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              SOP Type
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {(
+                [
+                  { value: "procedure" as const, label: "Procedure", emoji: "📋" },
+                  { value: "recipe" as const, label: "Recipe", emoji: "📖" },
+                  { value: "greeting_behavior" as const, label: "Greeting & behavior", emoji: "💬" },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setSopType(opt.value)}
+                  className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all border-2 text-center ${
+                    sopType === opt.value
+                      ? "border-amber-400 bg-amber-50 text-amber-700"
+                      : "border-gray-200 text-gray-600 hover:border-gray-300"
+                  }`}
+                >
+                  <span className="block mb-0.5">{opt.emoji}</span>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Importance
             </label>
             <div className="grid grid-cols-4 gap-2">
@@ -281,6 +445,230 @@ const SOPForm = ({ sopId }: SOPFormProps) => {
           </div>
 
           <button
+            onClick={() =>
+              setCurrentTab(
+                sopType === "recipe" || sopType === "greeting_behavior" ? "extras" : "steps"
+              )
+            }
+            className="w-full bg-amber-600 text-white py-3 rounded-xl font-semibold hover:bg-amber-700 transition-colors"
+          >
+            Next:{" "}
+            {sopType === "recipe" || sopType === "greeting_behavior"
+              ? "Ingredients & lists / When this happens"
+              : "Add Steps"}{" "}
+            →
+          </button>
+        </div>
+      )}
+
+      {currentTab === "extras" && sopType === "recipe" && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-6">
+          <h2 className="text-lg font-semibold text-gray-900">Ingredients</h2>
+          <div className="space-y-2">
+            {ingredients.map((ing, idx) => (
+              <div
+                key={ing.id}
+                className="flex items-center gap-2 flex-wrap"
+              >
+                <span className="text-gray-400 w-6">{idx + 1}.</span>
+                <input
+                  type="text"
+                  value={ing.name}
+                  onChange={(e) =>
+                    setIngredients((prev) =>
+                      prev.map((r) => (r.id === ing.id ? { ...r, name: e.target.value } : r))
+                    )
+                  }
+                  placeholder="Name"
+                  className="w-32 md:w-40 px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                />
+                <input
+                  type="text"
+                  value={ing.amount}
+                  onChange={(e) =>
+                    setIngredients((prev) =>
+                      prev.map((r) => (r.id === ing.id ? { ...r, amount: e.target.value } : r))
+                    )
+                  }
+                  placeholder="Amount"
+                  className="w-24 md:w-28 px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                />
+                <input
+                  type="text"
+                  value={ing.unit}
+                  onChange={(e) =>
+                    setIngredients((prev) =>
+                      prev.map((r) => (r.id === ing.id ? { ...r, unit: e.target.value } : r))
+                    )
+                  }
+                  placeholder="Unit (optional)"
+                  className="w-24 md:w-28 px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setIngredients((prev) => prev.filter((r) => r.id !== ing.id))}
+                  className="text-gray-400 hover:text-red-500 p-1"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() =>
+                setIngredients((prev) => [
+                  ...prev,
+                  { id: `ing-${Date.now()}`, name: "", amount: "", unit: "" },
+                ])
+              }
+              className="flex items-center gap-1 text-sm text-amber-600 hover:text-amber-700 font-medium"
+            >
+              <Plus className="w-4 h-4" /> Add ingredient
+            </button>
+          </div>
+
+          <h2 className="text-lg font-semibold text-gray-900 pt-2">Tools</h2>
+          <div className="space-y-2">
+            {tools.map((t) => (
+              <div key={t.id} className="flex items-center gap-2">
+                <GripVertical className="w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={t.label}
+                  onChange={(e) =>
+                    setTools((prev) =>
+                      prev.map((r) => (r.id === t.id ? { ...r, label: e.target.value } : r))
+                    )
+                  }
+                  placeholder="Tool name"
+                  className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setTools((prev) => prev.filter((r) => r.id !== t.id))}
+                  className="text-gray-400 hover:text-red-500 p-1"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() =>
+                setTools((prev) => [...prev, { id: `tool-${Date.now()}`, label: "" }])
+              }
+              className="flex items-center gap-1 text-sm text-amber-600 hover:text-amber-700 font-medium"
+            >
+              <Plus className="w-4 h-4" /> Add tool
+            </button>
+          </div>
+
+          <h2 className="text-lg font-semibold text-gray-900 pt-2">Pre-requirements</h2>
+          <div className="space-y-2">
+            {prereqs.map((p) => (
+              <div key={p.id} className="flex items-center gap-2">
+                <GripVertical className="w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={p.label}
+                  onChange={(e) =>
+                    setPrereqs((prev) =>
+                      prev.map((r) => (r.id === p.id ? { ...r, label: e.target.value } : r))
+                    )
+                  }
+                  placeholder="Pre-requirement"
+                  className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPrereqs((prev) => prev.filter((r) => r.id !== p.id))}
+                  className="text-gray-400 hover:text-red-500 p-1"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() =>
+                setPrereqs((prev) => [...prev, { id: `prereq-${Date.now()}`, label: "" }])
+              }
+              className="flex items-center gap-1 text-sm text-amber-600 hover:text-amber-700 font-medium"
+            >
+              <Plus className="w-4 h-4" /> Add pre-requirement
+            </button>
+          </div>
+
+          <button
+            onClick={() => setCurrentTab("steps")}
+            className="w-full bg-amber-600 text-white py-3 rounded-xl font-semibold hover:bg-amber-700 transition-colors"
+          >
+            Next: Add Steps →
+          </button>
+        </div>
+      )}
+
+      {currentTab === "extras" && sopType === "greeting_behavior" && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-6">
+          <h2 className="text-lg font-semibold text-gray-900">When this happens</h2>
+          <p className="text-sm text-gray-500">
+            Add scenarios: when a specific behavior happens, what to do.
+          </p>
+          <div className="space-y-4">
+            {behaviors.map((b) => (
+              <div
+                key={b.id}
+                className="border border-gray-200 rounded-xl p-4 space-y-3"
+              >
+                <input
+                  type="text"
+                  value={b.trigger_title}
+                  onChange={(e) =>
+                    setBehaviors((prev) =>
+                      prev.map((r) =>
+                        r.id === b.id ? { ...r, trigger_title: e.target.value } : r
+                      )
+                    )
+                  }
+                  placeholder="e.g. Customer is upset"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium"
+                />
+                <textarea
+                  value={b.response_content}
+                  onChange={(e) =>
+                    setBehaviors((prev) =>
+                      prev.map((r) =>
+                        r.id === b.id ? { ...r, response_content: e.target.value } : r
+                      )
+                    )
+                  }
+                  placeholder="What to do..."
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm resize-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setBehaviors((prev) => prev.filter((r) => r.id !== b.id))}
+                  className="text-sm text-red-500 hover:text-red-600 font-medium"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() =>
+                setBehaviors((prev) => [
+                  ...prev,
+                  { id: `beh-${Date.now()}`, trigger_title: "", response_content: "" },
+                ])
+              }
+              className="w-full border-2 border-dashed border-gray-200 rounded-xl p-4 text-center text-sm font-medium text-gray-500 hover:border-amber-300 hover:bg-amber-50/50"
+            >
+              <Plus className="w-4 h-4 inline mr-1" /> Add scenario
+            </button>
+          </div>
+          <button
             onClick={() => setCurrentTab("steps")}
             className="w-full bg-amber-600 text-white py-3 rounded-xl font-semibold hover:bg-amber-700 transition-colors"
           >
@@ -291,7 +679,12 @@ const SOPForm = ({ sopId }: SOPFormProps) => {
 
       {currentTab === "steps" && (
         <div className="space-y-4">
-          <StepEditor steps={steps} onChange={setSteps} />
+          <StepEditor
+            steps={steps}
+            onChange={setSteps}
+            currentSopId={sopId}
+            linkedSopOptions={linkedSopOptions}
+          />
 
           <div className="flex items-center gap-3 pt-4 border-t border-gray-100 mt-6">
             <button

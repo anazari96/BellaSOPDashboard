@@ -2,9 +2,6 @@
 -- Bella SOP Dashboard - Initial Schema
 -- ============================================
 
--- Enable UUID generation
-create extension if not exists "uuid-ossp";
-
 -- ============================================
 -- ENUM TYPES
 -- ============================================
@@ -38,7 +35,7 @@ begin
 end;
 $$ language plpgsql security definer;
 
-create trigger on_auth_user_created
+create or replace trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
@@ -46,7 +43,7 @@ create trigger on_auth_user_created
 -- CATEGORIES
 -- ============================================
 create table categories (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   name text not null unique,
   emoji text not null default '📋',
   description text,
@@ -58,7 +55,7 @@ create table categories (
 -- SOPS
 -- ============================================
 create table sops (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   title text not null,
   description text,
   category_id uuid not null references categories(id) on delete restrict,
@@ -77,7 +74,7 @@ create index idx_sops_importance on sops(importance);
 -- SOP STEPS
 -- ============================================
 create table sop_steps (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   sop_id uuid not null references sops(id) on delete cascade,
   step_number int not null,
   title text not null,
@@ -94,7 +91,7 @@ create index idx_sop_steps_sop on sop_steps(sop_id);
 -- STEP MEDIA
 -- ============================================
 create table step_media (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   step_id uuid not null references sop_steps(id) on delete cascade,
   media_url text not null,
   media_type media_type not null default 'image',
@@ -108,7 +105,7 @@ create index idx_step_media_step on step_media(step_id);
 -- STAFF PROGRESS
 -- ============================================
 create table staff_progress (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references profiles(id) on delete cascade,
   sop_id uuid not null references sops(id) on delete cascade,
   step_id uuid not null references sop_steps(id) on delete cascade,

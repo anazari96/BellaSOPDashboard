@@ -29,11 +29,15 @@ export interface StepData {
   tip: string;
   warning: string;
   media: { id?: string; media_url: string; media_type: MediaType; caption: string }[];
+  linked_sop_id?: string | null;
+  linked_sop?: { id: string; title: string; category?: { name: string; emoji: string } };
 }
 
 interface StepEditorProps {
   steps: StepData[];
   onChange: (steps: StepData[]) => void;
+  currentSopId?: string;
+  linkedSopOptions?: { id: string; title: string; category?: { name: string; emoji: string } }[];
 }
 
 const SortableStep = ({
@@ -41,11 +45,15 @@ const SortableStep = ({
   index,
   onUpdate,
   onRemove,
+  linkedSopOptions,
+  currentSopId,
 }: {
   step: StepData;
   index: number;
   onUpdate: (id: string, data: Partial<StepData>) => void;
   onRemove: (id: string) => void;
+  linkedSopOptions: { id: string; title: string; category?: { name: string; emoji: string } }[];
+  currentSopId?: string;
 }) => {
   const [expanded, setExpanded] = useState(true);
   const { attributes, listeners, setNodeRef, transform, transition } =
@@ -143,6 +151,34 @@ const SortableStep = ({
 
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1.5">
+              Link to another SOP (optional)
+            </label>
+            <select
+              value={step.linked_sop_id ?? ""}
+              onChange={(e) => {
+                const val = e.target.value;
+                onUpdate(step.id, {
+                  linked_sop_id: val ? val : null,
+                  linked_sop: val
+                    ? linkedSopOptions.find((o) => o.id === val) ?? undefined
+                    : undefined,
+                });
+              }}
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 outline-none text-sm text-gray-900 bg-white"
+            >
+              <option value="">None</option>
+              {linkedSopOptions
+                .filter((o) => o.id !== currentSopId)
+                .map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.category?.emoji} {o.title}
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1.5">
               📸 Media
             </label>
             <MediaUploader
@@ -156,7 +192,12 @@ const SortableStep = ({
   );
 };
 
-const StepEditor = ({ steps, onChange }: StepEditorProps) => {
+const StepEditor = ({
+  steps,
+  onChange,
+  currentSopId,
+  linkedSopOptions = [],
+}: StepEditorProps) => {
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -172,6 +213,7 @@ const StepEditor = ({ steps, onChange }: StepEditorProps) => {
       tip: "",
       warning: "",
       media: [],
+      linked_sop_id: null,
     };
     onChange([...steps, newStep]);
   };
@@ -213,6 +255,8 @@ const StepEditor = ({ steps, onChange }: StepEditorProps) => {
               index={index}
               onUpdate={updateStep}
               onRemove={removeStep}
+              linkedSopOptions={linkedSopOptions}
+              currentSopId={currentSopId}
             />
           ))}
         </SortableContext>

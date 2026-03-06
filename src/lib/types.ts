@@ -2,6 +2,8 @@ export type UserRole = "admin" | "staff";
 export type SOPImportance = "critical" | "high" | "medium" | "low";
 export type SOPStatus = "draft" | "published";
 export type MediaType = "image" | "video";
+export type SOPType = "procedure" | "recipe" | "greeting_behavior";
+export type SOPListItemType = "tool" | "prereq";
 
 export interface Profile {
   id: string;
@@ -27,11 +29,43 @@ export interface SOP {
   category_id: string;
   importance: SOPImportance;
   status: SOPStatus;
+  sop_type?: SOPType;
   created_by: string | null;
   created_at: string;
   updated_at: string;
   category?: Category;
   steps?: SOPStep[];
+  ingredients?: SOPIngredient[];
+  list_items?: SOPListItem[];
+  behaviors?: SOPBehavior[];
+}
+
+export interface SOPIngredient {
+  id: string;
+  sop_id: string;
+  sort_order: number;
+  name: string;
+  amount: string;
+  unit: string | null;
+  created_at: string;
+}
+
+export interface SOPListItem {
+  id: string;
+  sop_id: string;
+  type: SOPListItemType;
+  label: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface SOPBehavior {
+  id: string;
+  sop_id: string;
+  sort_order: number;
+  trigger_title: string;
+  response_content: string;
+  created_at: string;
 }
 
 export interface SOPStep {
@@ -42,8 +76,10 @@ export interface SOPStep {
   content: string;
   tip: string | null;
   warning: string | null;
+  linked_sop_id: string | null;
   created_at: string;
   media?: StepMedia[];
+  linked_sop?: { id: string; title: string; category?: { name: string; emoji: string } };
 }
 
 export interface StepMedia {

@@ -32,10 +32,19 @@ const SOPCard = ({ sop, completedSteps, totalSteps }: SOPCardProps) => {
           </p>
         )}
 
-        <div className="flex items-center gap-2 text-xs text-gray-400 mb-3">
+        <div className="flex items-center gap-2 text-xs text-gray-400 mb-3 flex-wrap">
           <span className="bg-gray-100 px-2 py-0.5 rounded-md">
             {sop.category?.name}
           </span>
+          {sop.sop_type && (
+            <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-md border border-amber-200">
+              {sop.sop_type === "recipe"
+                ? "Recipe"
+                : sop.sop_type === "greeting_behavior"
+                  ? "Greeting"
+                  : "Procedure"}
+            </span>
+          )}
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
             {formatDate(sop.updated_at)}

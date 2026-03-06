@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import Link from "next/link";
 import {
   ChevronLeft,
   ChevronRight,
@@ -9,6 +10,7 @@ import {
   Lightbulb,
   AlertTriangle,
   PartyPopper,
+  ExternalLink,
 } from "lucide-react";
 import StepMedia from "./StepMedia";
 import ProgressBar from "./ProgressBar";
@@ -171,6 +173,22 @@ const StepViewer = ({ sopId, steps, initialProgress, userId }: StepViewerProps) 
                   <p className="text-sm text-red-700">{currentStep.warning}</p>
                 </div>
               </div>
+            )}
+
+            {(currentStep.linked_sop_id && currentStep.linked_sop) && (
+              <Link
+                href={`/sops/${currentStep.linked_sop.id}`}
+                className="mt-4 flex items-center gap-3 p-4 rounded-xl border-2 border-amber-200 bg-amber-50 hover:bg-amber-100 transition-colors"
+              >
+                <span className="text-2xl">{currentStep.linked_sop.category?.emoji || "📋"}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-amber-700 mb-0.5">Related SOP</p>
+                  <p className="text-sm font-semibold text-gray-900 truncate">
+                    {currentStep.linked_sop.title}
+                  </p>
+                </div>
+                <ExternalLink className="w-4 h-4 text-amber-600 flex-shrink-0" />
+              </Link>
             )}
 
             <button
