@@ -33,83 +33,73 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     let mounted = true;
-    let loadingDone = false;
+    let profileFetchedFor: string | null = null;
 
-    const setLoadingFalse = () => {
-      if (mounted && !loadingDone) {
-        loadingDone = true;
-        setLoading(false);
+    const fallbackTimer = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 3000);
+
+    const fetchProfile = async (userId: string, force = false) => {
+      if (!force && profileFetchedFor === userId) return;
+      profileFetchedFor = userId;
+
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, full_name, role, avatar_url, created_at")
+          .eq("id", userId)
+          .single();
+
+        if (error && error.code !== "PGRST116") {
+          console.error("Error fetching profile:", error);
+        }
+
+        if (mounted) setProfile(data ?? null);
+      } catch (err) {
+        console.error("Unexpected error fetching profile:", err);
       }
     };
 
-    // Fallback: stop loading after 3s so we never hang indefinitely (e.g. slow network)
-    const fallbackTimer = setTimeout(setLoadingFalse, 3000);
-
-    const getSession = async () => {
+    const initialize = async () => {
       try {
-        const { data: { user }, error } = await supabase.auth.getUser();
+        const { data: { user: initialUser }, error } = await supabase.auth.getUser();
+        if (error) console.warn("Auth getUser error:", error.message);
+        if (!mounted) return;
 
-        if (error) {
-          console.warn("Auth getUser error:", error.message);
-        }
+        setUser(initialUser ?? null);
 
-        if (mounted) setUser(user ?? null);
-
-        if (user) {
-          const { data, error: profileError } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", user.id)
-            .single();
-
-          if (profileError && profileError.code !== "PGRST116") {
-            console.error("Error fetching profile:", profileError);
-          }
-
-          if (mounted) setProfile(data ?? null);
-        } else if (mounted) {
+        if (initialUser) {
+          await fetchProfile(initialUser.id);
+        } else {
           setProfile(null);
         }
       } catch (err) {
         console.error("Unexpected error getting session:", err);
       } finally {
-        setLoadingFalse();
+        if (mounted) setLoading(false);
       }
     };
 
-    getSession();
+    initialize();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
-      console.log("session", session)
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
 
-      const sessionUser = session?.user ?? null;
-      setUser(sessionUser);
-
-      if (sessionUser) {
-        try {
-          const { data, error: profileError } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", sessionUser.id)
-            .single();
-
-          if (profileError && profileError.code !== "PGRST116") {
-            console.error("Error fetching profile on auth change:", profileError);
-          }
-
-          if (mounted) setProfile(data ?? null);
-        } catch (err) {
-          console.error("Unexpected error fetching profile:", err);
-        }
-      } else {
-        if (mounted) setProfile(null);
+      if (event === "INITIAL_SESSION") {
+        if (currentUser) await fetchProfile(currentUser.id);
+        else setProfile(null);
+        if (mounted) setLoading(false);
+      } else if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+        if (currentUser) await fetchProfile(currentUser.id, true);
+      } else if (event === "SIGNED_OUT") {
+        profileFetchedFor = null;
+        setProfile(null);
       }
-
-      setLoadingFalse();
     });
 
     return () => {

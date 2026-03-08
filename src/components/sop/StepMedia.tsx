@@ -17,13 +17,13 @@ const StepMedia = ({ media }: StepMediaProps) => {
             <img
               src={item.media_url}
               alt={item.caption || "Step illustration"}
-              className="w-full h-auto max-h-64 object-cover"
+              className="w-full h-auto object-cover"
             />
           ) : (
             <video
               src={item.media_url}
               controls
-              className="w-full h-auto max-h-64"
+              className="w-full h-auto"
               preload="metadata"
             >
               Your browser does not support video playback.

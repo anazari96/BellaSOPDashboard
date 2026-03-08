@@ -22,6 +22,7 @@ const SOPBrowsePage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log("authLoading", authLoading)
     if (authLoading) return;
     const fetchCategories = async () => {
       try {
@@ -38,6 +39,8 @@ const SOPBrowsePage = () => {
   }, [authLoading, supabase]);
 
   useEffect(() => {
+    console.log("authLoading", authLoading)
+
     if (authLoading) return;
     const fetchSops = async () => {
       setLoading(true);
@@ -67,8 +70,8 @@ const SOPBrowsePage = () => {
       }
     };
 
-    const debounce = setTimeout(fetchSops, 300);
-    return () => clearTimeout(debounce);
+    fetchSops();
+    // return () => clearTimeout(debounce);
   }, [authLoading, supabase, selectedCategory, importanceFilter, searchQuery]);
 
   const clearFilters = () => {

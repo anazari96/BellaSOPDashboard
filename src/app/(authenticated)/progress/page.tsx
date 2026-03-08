@@ -28,21 +28,22 @@ const ProgressPage = () => {
 
     const fetchProgress = async () => {
       try {
-        const { data: sops } = await supabase
-          .from("sops")
-          .select("id, title, category:categories(name, emoji), sop_steps(id)")
-          .eq("status", "published");
+        const [{ data: sops }, { data: progress }] = await Promise.all([
+          supabase
+            .from("sops")
+            .select("id, title, category:categories(name, emoji), sop_steps(id)")
+            .eq("status", "published"),
+          supabase
+            .from("staff_progress")
+            .select("sop_id, step_id, completed")
+            .eq("user_id", user.id)
+            .eq("completed", true),
+        ]);
 
         if (!sops) {
           setSopProgress([]);
           return;
         }
-
-        const { data: progress } = await supabase
-          .from("staff_progress")
-          .select("sop_id, step_id, completed")
-          .eq("user_id", user.id)
-          .eq("completed", true);
 
         const progressMap = new Map<string, Set<string>>();
         (progress || []).forEach((p) => {

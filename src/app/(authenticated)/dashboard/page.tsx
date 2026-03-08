@@ -38,7 +38,7 @@ const DashboardPage = () => {
 
     const fetchData = async () => {
       try {
-        const [sopsRes, categoriesRes] = await Promise.all([
+        const [sopsRes, categoriesRes, totalRes, publishedRes] = await Promise.all([
           supabase
             .from("sops")
             .select("*, category:categories(name, emoji)")
@@ -46,23 +46,16 @@ const DashboardPage = () => {
             .order("updated_at", { ascending: false })
             .limit(6),
           supabase.from("categories").select("*").order("sort_order"),
+          supabase.from("sops").select("*", { count: "exact", head: true }),
+          supabase.from("sops").select("*", { count: "exact", head: true }).eq("status", "published"),
         ]);
 
         setRecentSops(sopsRes.data || []);
         setCategories(categoriesRes.data || []);
 
-        const { count: totalSops } = await supabase
-          .from("sops")
-          .select("*", { count: "exact", head: true });
-
-        const { count: publishedSops } = await supabase
-          .from("sops")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "published");
-
         setStats({
-          totalSops: totalSops || 0,
-          publishedSops: publishedSops || 0,
+          totalSops: totalRes.count || 0,
+          publishedSops: publishedRes.count || 0,
           totalCategories: categoriesRes.data?.length || 0,
           myCompletedSops: 0,
         });

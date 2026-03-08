@@ -209,84 +209,99 @@ const SOPForm = ({ sopId }: SOPFormProps) => {
       return;
     }
 
+    // Delete old steps (cascade handles step_media automatically)
     if (isEditing) {
-      const { data: existingSteps } = await supabase
-        .from("sop_steps")
-        .select("id")
-        .eq("sop_id", savedSopId);
+      await supabase.from("sop_steps").delete().eq("sop_id", savedSopId);
+    }
 
-      if (existingSteps) {
-        for (const s of existingSteps) {
-          await supabase.from("step_media").delete().eq("step_id", s.id);
+    // Bulk insert all valid steps in one query
+    const validSteps = steps.filter((s) => s.title.trim() || s.content.trim());
+    if (validSteps.length > 0) {
+      const { data: insertedSteps } = await supabase
+        .from("sop_steps")
+        .insert(
+          validSteps.map((s, i) => ({
+            sop_id: savedSopId,
+            step_number: i + 1,
+            title: s.title.trim() || `Step ${i + 1}`,
+            content: s.content.trim(),
+            tip: s.tip.trim() || null,
+            warning: s.warning.trim() || null,
+            linked_sop_id: s.linked_sop_id || null,
+          }))
+        )
+        .select("id, step_number")
+        .order("step_number");
+
+      // Bulk insert all media across all steps in one query
+      if (insertedSteps) {
+        const allMedia: { step_id: string; media_url: string; media_type: string; caption: string | null; sort_order: number }[] = [];
+        for (let i = 0; i < insertedSteps.length; i++) {
+          const original = validSteps[i];
+          if (original?.media?.length > 0) {
+            original.media.forEach((m, j) => {
+              allMedia.push({
+                step_id: insertedSteps[i].id,
+                media_url: m.media_url,
+                media_type: m.media_type,
+                caption: m.caption || null,
+                sort_order: j,
+              });
+            });
+          }
         }
-        await supabase.from("sop_steps").delete().eq("sop_id", savedSopId);
+        if (allMedia.length > 0) {
+          await supabase.from("step_media").insert(allMedia);
+        }
       }
     }
 
-    for (let i = 0; i < steps.length; i++) {
-      const step = steps[i];
-      if (!step.title.trim() && !step.content.trim()) continue;
+    // Clear old type-specific data in parallel
+    await Promise.all([
+      supabase.from("sop_ingredients").delete().eq("sop_id", savedSopId),
+      supabase.from("sop_list_items").delete().eq("sop_id", savedSopId),
+      supabase.from("sop_behaviors").delete().eq("sop_id", savedSopId),
+    ]);
 
-      const { data: stepData } = await supabase
-        .from("sop_steps")
-        .insert({
-          sop_id: savedSopId,
-          step_number: i + 1,
-          title: step.title.trim() || `Step ${i + 1}`,
-          content: step.content.trim(),
-          tip: step.tip.trim() || null,
-          warning: step.warning.trim() || null,
-          linked_sop_id: step.linked_sop_id || null,
-        })
-        .select("id")
-        .single();
+    // Insert new type-specific data in parallel
+    const typeInserts: PromiseLike<unknown>[] = [];
 
-      if (stepData && step.media.length > 0) {
-        const mediaInserts = step.media.map((m, j) => ({
-          step_id: stepData.id,
-          media_url: m.media_url,
-          media_type: m.media_type,
-          caption: m.caption || null,
-          sort_order: j,
-        }));
-        await supabase.from("step_media").insert(mediaInserts);
-      }
-    }
-
-    // Save ingredients (recipe)
-    await supabase.from("sop_ingredients").delete().eq("sop_id", savedSopId);
     if (sopType === "recipe" && ingredients.length > 0) {
-      await supabase.from("sop_ingredients").insert(
-        ingredients.map((ing, j) => ({
-          sop_id: savedSopId,
-          sort_order: j,
-          name: ing.name.trim(),
-          amount: ing.amount.trim(),
-          unit: ing.unit.trim() || null,
-        }))
+      typeInserts.push(
+        supabase.from("sop_ingredients").insert(
+          ingredients.map((ing, j) => ({
+            sop_id: savedSopId,
+            sort_order: j,
+            name: ing.name.trim(),
+            amount: ing.amount.trim(),
+            unit: ing.unit.trim() || null,
+          }))
+        )
       );
     }
 
-    // Save list items (tools + prereqs)
-    await supabase.from("sop_list_items").delete().eq("sop_id", savedSopId);
     const listInserts: { sop_id: string; type: SOPListItemType; label: string; sort_order: number }[] = [];
-    tools.forEach((t, j) => listInserts.push({ sop_id: savedSopId, type: "tool", label: t.label.trim(), sort_order: j }));
-    prereqs.forEach((p, j) => listInserts.push({ sop_id: savedSopId, type: "prereq", label: p.label.trim(), sort_order: j }));
+    tools.forEach((t, j) => listInserts.push({ sop_id: savedSopId!, type: "tool", label: t.label.trim(), sort_order: j }));
+    prereqs.forEach((p, j) => listInserts.push({ sop_id: savedSopId!, type: "prereq", label: p.label.trim(), sort_order: j }));
     if (listInserts.length > 0) {
-      await supabase.from("sop_list_items").insert(listInserts);
+      typeInserts.push(supabase.from("sop_list_items").insert(listInserts));
     }
 
-    // Save behaviors (greeting_behavior)
-    await supabase.from("sop_behaviors").delete().eq("sop_id", savedSopId);
     if (sopType === "greeting_behavior" && behaviors.length > 0) {
-      await supabase.from("sop_behaviors").insert(
-        behaviors.map((b, j) => ({
-          sop_id: savedSopId,
-          sort_order: j,
-          trigger_title: b.trigger_title.trim(),
-          response_content: b.response_content.trim(),
-        }))
+      typeInserts.push(
+        supabase.from("sop_behaviors").insert(
+          behaviors.map((b, j) => ({
+            sop_id: savedSopId,
+            sort_order: j,
+            trigger_title: b.trigger_title.trim(),
+            response_content: b.response_content.trim(),
+          }))
+        )
       );
+    }
+
+    if (typeInserts.length > 0) {
+      await Promise.all(typeInserts);
     }
 
     setSaving(false);

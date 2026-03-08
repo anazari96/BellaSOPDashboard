@@ -45,12 +45,6 @@ const AdminSOPListPage = () => {
     if (!confirm("Are you sure you want to delete this SOP? This cannot be undone.")) return;
     setDeleting(sopId);
 
-    await supabase.from("staff_progress").delete().eq("sop_id", sopId);
-    await supabase.from("step_media").delete().in(
-      "step_id",
-      (await supabase.from("sop_steps").select("id").eq("sop_id", sopId)).data?.map(s => s.id) || []
-    );
-    await supabase.from("sop_steps").delete().eq("sop_id", sopId);
     await supabase.from("sops").delete().eq("id", sopId);
 
     setSops((prev) => prev.filter((s) => s.id !== sopId));
