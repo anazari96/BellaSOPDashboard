@@ -76,7 +76,13 @@ const SOPForm = ({ sopId }: SOPFormProps) => {
         ]);
         const cats = catsRes.data || [];
         setCategories(cats);
-        setLinkedSopOptions((sopsRes.data || []) as { id: string; title: string; category?: { name: string; emoji: string } }[]);
+        setLinkedSopOptions(
+          (sopsRes.data || []).map((s) => ({
+            id: s.id,
+            title: s.title,
+            category: Array.isArray(s.category) ? s.category[0] : s.category ?? undefined,
+          }))
+        );
 
         if (cats && cats.length > 0 && !categoryId) {
           setCategoryId(cats[0].id);

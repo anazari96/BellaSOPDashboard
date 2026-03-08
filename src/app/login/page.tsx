@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { supabaseClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { Coffee, Eye, EyeOff, Loader2 } from "lucide-react";
 
@@ -13,7 +13,7 @@ const LoginPage = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = supabaseClient;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

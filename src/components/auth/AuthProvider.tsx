@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { supabaseClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/types";
 import type { User, SupabaseClient } from "@supabase/supabase-js";
 
@@ -19,7 +19,7 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
   isAdmin: false,
-  supabase: createClient(),
+  supabase: supabaseClient,
   signOut: async () => {},
 });
 
@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [supabase] = useState(() => createClient());
+  const supabase = supabaseClient
 
   useEffect(() => {
     let mounted = true;
