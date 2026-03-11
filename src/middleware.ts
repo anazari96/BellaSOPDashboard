@@ -8,9 +8,9 @@ export async function middleware(request: NextRequest) {
   console.log("x-real-ip", request.headers.get("x-real-ip"));
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() || request.headers.get("x-real-ip");
 
-  if (!ALLOWED_IPS.includes(ip ?? "")) {
-    return new NextResponse("Access denied", { status: 403 });
-  }
+  // if (!ALLOWED_IPS.includes(ip ?? "")) {
+  //   return new NextResponse("Access denied", { status: 403 });
+  // }
 
   return await updateSession(request);
 }
