@@ -100,6 +100,27 @@ export interface StaffProgress {
   completed_at: string | null;
 }
 
+export interface SOPPreset {
+  id: string;
+  title: string;
+  description: string | null;
+  emoji: string;
+  status: SOPStatus;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  items?: SOPPresetItem[];
+}
+
+export interface SOPPresetItem {
+  id: string;
+  preset_id: string;
+  sop_id: string;
+  sort_order: number;
+  created_at: string;
+  sop?: SOP;
+}
+
 export const IMPORTANCE_CONFIG: Record<
   SOPImportance,
   { label: string; emoji: string; color: string; bg: string }

@@ -12,6 +12,7 @@ const Sidebar = () => {
   const mainLinks = [
     { href: "/dashboard", label: "Dashboard", emoji: "🏠" },
     { href: "/sops", label: "Browse SOPs", emoji: "📋" },
+    { href: "/presets", label: "Presets", emoji: "📚" },
   ];
 
   const staffLinks = [
@@ -21,6 +22,7 @@ const Sidebar = () => {
   const adminLinks = [
     { href: "/admin/sops", label: "Manage SOPs", emoji: "⚙️" },
     { href: "/admin/sops/new", label: "Create SOP", emoji: "✏️" },
+    { href: "/admin/presets", label: "Presets", emoji: "📚" },
     { href: "/admin/categories", label: "Categories", emoji: "🏷️" },
   ];
 
