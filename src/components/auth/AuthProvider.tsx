@@ -1,7 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { supabaseClient } from "@/lib/supabase/client";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/types";
 import type { User, SupabaseClient } from "@supabase/supabase-js";
 
@@ -19,7 +19,7 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
   isAdmin: false,
-  supabase: supabaseClient,
+  supabase: createClient(),
   signOut: async () => {},
 });
 
@@ -29,15 +29,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = supabaseClient
+  const supabase = useMemo(() => createClient(), [createClient])
 
   useEffect(() => {
-    let mounted = true;
     let profileFetchedFor: string | null = null;
-
-    const fallbackTimer = setTimeout(() => {
-      if (mounted) setLoading(false);
-    }, 3000);
+    const abortController = new AbortController();
 
     const fetchProfile = async (userId: string, force = false) => {
       if (!force && profileFetchedFor === userId) return;
@@ -48,54 +44,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           .from("profiles")
           .select("id, full_name, role, avatar_url, created_at")
           .eq("id", userId)
+          .abortSignal(abortController.signal)
           .single();
 
-        if (error && error.code !== "PGRST116") {
-          console.error("Error fetching profile:", error);
+        if (error) {
+          if (error.code === "PGRST116") {
+            setProfile(null);
+          } else {
+            console.error("Error fetching profile:", error);
+          }
+          return;
         }
 
-        if (mounted) setProfile(data ?? null);
+        setProfile(data);
       } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return;
         console.error("Unexpected error fetching profile:", err);
       }
     };
 
-    const initialize = async () => {
-      try {
-        const { data: { user: initialUser }, error } = await supabase.auth.getUser();
-        if (error) console.warn("Auth getUser error:", error.message);
-        if (!mounted) return;
-
-        setUser(initialUser ?? null);
-
-        if (initialUser) {
-          await fetchProfile(initialUser.id);
-        } else {
-          setProfile(null);
-        }
-      } catch (err) {
-        console.error("Unexpected error getting session:", err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    initialize();
-
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-
+    } = supabase.auth.onAuthStateChange((event, session) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
 
       if (event === "INITIAL_SESSION") {
-        if (currentUser) await fetchProfile(currentUser.id);
-        else setProfile(null);
-        if (mounted) setLoading(false);
+        if (currentUser) {
+          // Defer Supabase calls outside the callback to avoid deadlock (see Supabase docs)
+          setTimeout(() => {
+            fetchProfile(currentUser.id).finally(() => setLoading(false));
+          }, 0);
+        } else {
+          setProfile(null);
+          setLoading(false);
+        }
       } else if (event === "SIGNED_IN" || event === "USER_UPDATED") {
-        if (currentUser) await fetchProfile(currentUser.id, true);
+        if (currentUser) {
+          setTimeout(() => fetchProfile(currentUser.id, true), 0);
+        }
       } else if (event === "SIGNED_OUT") {
         profileFetchedFor = null;
         setProfile(null);
@@ -103,8 +90,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     return () => {
-      mounted = false;
-      clearTimeout(fallbackTimer);
+      abortController.abort();
       subscription.unsubscribe();
     };
   }, [supabase]);

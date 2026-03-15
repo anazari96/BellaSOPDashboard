@@ -485,6 +485,7 @@ const SOPForm = ({ sopId }: SOPFormProps) => {
   };
 
   // ── Render ─────────────────────────────────────────────────────────────
+  console.log("loading", loading, authLoading)
 
   if (loading) {
     return (
