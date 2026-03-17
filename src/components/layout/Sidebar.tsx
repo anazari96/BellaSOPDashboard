@@ -16,6 +16,7 @@ const Sidebar = () => {
   ];
 
   const staffLinks = [
+    { href: "/training", label: "My Training", emoji: "🎓" },
     { href: "/progress", label: "My Progress", emoji: "📊" },
   ];
 
@@ -24,6 +25,7 @@ const Sidebar = () => {
     { href: "/admin/sops/new", label: "Create SOP", emoji: "✏️" },
     { href: "/admin/presets", label: "Presets", emoji: "📚" },
     { href: "/admin/categories", label: "Categories", emoji: "🏷️" },
+    { href: "/admin/training", label: "Staff Training", emoji: "🎓" },
   ];
 
   const NavLink = ({ href, label, emoji }: { href: string; label: string; emoji: string }) => {

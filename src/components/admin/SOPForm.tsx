@@ -30,6 +30,7 @@ const sopFormSchema = z.object({
         content: z.string(),
         tip: z.string(),
         warning: z.string(),
+        video_url: z.string().nullable().optional(),
         media: z.array(
           z.object({
             id: z.string().optional(),
@@ -69,7 +70,16 @@ const DEFAULT_VALUES: SOPFormValues = {
   status: "draft",
   sopType: "procedure",
   steps: [
-    { id: "temp-1", title: "", content: "", tip: "", warning: "", media: [], linked_sop_id: null },
+    {
+      id: "temp-1",
+      title: "",
+      content: "",
+      tip: "",
+      warning: "",
+      video_url: null,
+      media: [],
+      linked_sop_id: null,
+    },
   ],
   ingredients: [],
   tools: [],
@@ -216,6 +226,7 @@ const SOPForm = ({ sopId }: SOPFormProps) => {
                 content: string;
                 tip: string | null;
                 warning: string | null;
+                video_url: string | null;
                 linked_sop_id: string | null;
                 media?: {
                   id: string;
@@ -229,6 +240,7 @@ const SOPForm = ({ sopId }: SOPFormProps) => {
                 content: s.content,
                 tip: s.tip || "",
                 warning: s.warning || "",
+                video_url: s.video_url || null,
                 linked_sop_id: s.linked_sop_id ?? null,
                 media: (s.media || []).map(
                   (m: {
@@ -383,6 +395,7 @@ const SOPForm = ({ sopId }: SOPFormProps) => {
               content: s.content.trim(),
               tip: s.tip.trim() || null,
               warning: s.warning.trim() || null,
+              video_url: s.video_url?.trim() || null,
               linked_sop_id: s.linked_sop_id || null,
             }))
           )

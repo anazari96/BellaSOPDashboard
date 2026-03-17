@@ -18,7 +18,19 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Plus, Trash2, ChevronDown, ChevronUp, Lightbulb, AlertTriangle } from "lucide-react";
+import {
+  GripVertical,
+  Plus,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  Lightbulb,
+  AlertTriangle,
+  Bold,
+  List,
+  Type,
+  Youtube,
+} from "lucide-react";
 import MediaUploader from "./MediaUploader";
 import type { MediaType } from "@/lib/types";
 
@@ -28,6 +40,7 @@ export interface StepData {
   content: string;
   tip: string;
   warning: string;
+  video_url?: string | null;
   media: { id?: string; media_url: string; media_type: MediaType; caption: string }[];
   linked_sop_id?: string | null;
   linked_sop?: { id: string; title: string; category?: { name: string; emoji: string } };
@@ -62,6 +75,45 @@ const SortableStep = ({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+  };
+
+  const insertMarkdown = (type: "bold" | "list" | "heading") => {
+    const textarea = document.getElementById(`step-content-${step.id}`) as HTMLTextAreaElement;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const before = text.substring(0, start);
+    const selected = text.substring(start, end);
+    const after = text.substring(end);
+
+    let newText = "";
+    let newCursorPos = start;
+
+    switch (type) {
+      case "bold":
+        newText = `${before}**${selected || "bold text"}**${after}`;
+        newCursorPos = start + (selected ? selected.length + 4 : 11);
+        break;
+      case "list":
+        const listText = selected || "item";
+        newText = `${before}\n- ${listText}\n${after}`;
+        newCursorPos = start + listText.length + 4;
+        break;
+      case "heading":
+        newText = `${before}### ${selected || "Heading"}\n${after}`;
+        newCursorPos = start + (selected ? selected.length + 4 : 11);
+        break;
+    }
+
+    onUpdate(step.id, { content: newText });
+
+    // Focus back and set cursor
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
   };
 
   return (
@@ -109,13 +161,42 @@ const SortableStep = ({
       {expanded && (
         <div className="p-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1.5">
-              Instructions
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-medium text-gray-600">
+                Instructions
+              </label>
+              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+                <button
+                  type="button"
+                  onClick={() => insertMarkdown("bold")}
+                  className="p-1 hover:bg-white hover:shadow-xs rounded transition-all text-gray-500 hover:text-gray-900"
+                  title="Bold (**text**)"
+                >
+                  <Bold className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => insertMarkdown("heading")}
+                  className="p-1 hover:bg-white hover:shadow-xs rounded transition-all text-gray-500 hover:text-gray-900"
+                  title="Heading (### text)"
+                >
+                  <Type className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => insertMarkdown("list")}
+                  className="p-1 hover:bg-white hover:shadow-xs rounded transition-all text-gray-500 hover:text-gray-900"
+                  title="List (- item)"
+                >
+                  <List className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
             <textarea
+              id={`step-content-${step.id}`}
               value={step.content}
               onChange={(e) => onUpdate(step.id, { content: e.target.value })}
-              placeholder="Describe what to do in this step..."
+              placeholder="Describe what to do in this step... Markdown is supported."
               rows={4}
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 outline-none text-sm resize-none text-gray-900 placeholder-gray-400"
             />
@@ -146,6 +227,20 @@ const SortableStep = ({
               onChange={(e) => onUpdate(step.id, { warning: e.target.value })}
               placeholder="Add a safety warning or caution..."
               className="w-full px-4 py-2.5 rounded-xl border border-red-200 focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none text-sm bg-red-50/50 text-gray-900 placeholder-gray-400"
+            />
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-amber-700 mb-1.5">
+              <Youtube className="w-4 h-4" />
+              YouTube Video URL (optional)
+            </label>
+            <input
+              type="text"
+              value={step.video_url ?? ""}
+              onChange={(e) => onUpdate(step.id, { video_url: e.target.value })}
+              placeholder="https://www.youtube.com/watch?v=..."
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 outline-none text-sm text-gray-900 placeholder-gray-400"
             />
           </div>
 
@@ -212,6 +307,7 @@ const StepEditor = ({
       content: "",
       tip: "",
       warning: "",
+      video_url: null,
       media: [],
       linked_sop_id: null,
     };

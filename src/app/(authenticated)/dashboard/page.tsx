@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import SOPCard from "@/components/sop/SOPCard";
-import type { SOP, Category } from "@/lib/types";
+import TrainingCard from "@/components/training/TrainingCard";
+import type { SOP, Category, TrainingSession } from "@/lib/types";
 import Link from "next/link";
 import {
   BookOpen,
@@ -12,6 +13,7 @@ import {
   Users,
   FileText,
   ArrowRight,
+  CheckCircle2,
 } from "lucide-react";
 
 interface DashboardStats {
@@ -23,6 +25,7 @@ interface DashboardStats {
 
 const DashboardPage = () => {
   const { profile, isAdmin, supabase, loading: authLoading } = useAuth();
+  const [activeTraining, setActiveTraining] = useState<TrainingSession | null>(null);
   const [recentSops, setRecentSops] = useState<SOP[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
@@ -38,7 +41,7 @@ const DashboardPage = () => {
 
     const fetchData = async () => {
       try {
-        const [sopsRes, categoriesRes, totalRes, publishedRes] = await Promise.all([
+        const [sopsRes, categoriesRes, totalRes, publishedRes, trainingRes] = await Promise.all([
           supabase
             .from("sops")
             .select("*, category:categories(name, emoji)")
@@ -48,10 +51,17 @@ const DashboardPage = () => {
           supabase.from("categories").select("*").order("sort_order"),
           supabase.from("sops").select("*", { count: "exact", head: true }),
           supabase.from("sops").select("*", { count: "exact", head: true }).eq("status", "published"),
+          supabase
+            .from("training_sessions")
+            .select("*, sop:sops(id, title, category:categories(name, emoji))")
+            .in("status", ["pending", "in_progress"])
+            .order("generated_at", { ascending: false })
+            .limit(1),
         ]);
 
         setRecentSops(sopsRes.data || []);
         setCategories(categoriesRes.data || []);
+        setActiveTraining(trainingRes.data?.[0] || null);
 
         setStats({
           totalSops: totalRes.count || 0,
@@ -95,6 +105,20 @@ const DashboardPage = () => {
             : "Ready to follow today's procedures?"}
         </p>
       </div>
+
+      {/* Today's Training */}
+      {activeTraining && (
+        <TrainingCard session={activeTraining} />
+      )}
+      {!activeTraining && !isAdmin && (
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-5 flex items-center gap-3">
+          <CheckCircle2 className="w-6 h-6 text-green-600 shrink-0" />
+          <div>
+            <p className="font-semibold text-green-800 text-sm">You're all caught up!</p>
+            <p className="text-xs text-green-600">No pending training sessions. Check back later.</p>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       {isAdmin && (

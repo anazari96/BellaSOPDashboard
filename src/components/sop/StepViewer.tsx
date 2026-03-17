@@ -14,6 +14,9 @@ import {
   Rows3,
   GalleryVertical,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Youtube } from "lucide-react";
 import StepMedia from "./StepMedia";
 import ProgressBar from "./ProgressBar";
 import type { SOPStep, StaffProgress } from "@/lib/types";
@@ -25,6 +28,15 @@ interface StepViewerProps {
   initialProgress: StaffProgress[];
   userId: string;
 }
+
+const getYouTubeEmbedUrl = (url: string | null | undefined) => {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  const id = match && match[2].length === 11 ? match[2] : null;
+  if (!id) return null;
+  return `https://www.youtube.com/embed/${id}`;
+};
 
 const StepViewer = ({ sopId, steps, initialProgress, userId }: StepViewerProps) => {
   const { supabase } = useAuth();
@@ -190,9 +202,35 @@ const StepViewer = ({ sopId, steps, initialProgress, userId }: StepViewerProps) 
                 >
                   {/* Left: content + tips + warnings + linked SOP */}
                   <div className={hasMedia ? "flex-1 min-w-0" : ""}>
-                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                      {step.content}
-                    </p>
+                    <div
+                      className="prose prose-sm max-w-none text-gray-700 leading-relaxed
+                        prose-headings:text-gray-900 prose-headings:font-bold
+                        prose-strong:text-gray-900
+                        prose-li:text-gray-700
+                        prose-p:text-gray-700"
+                    >
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          ul: ({ ...props }) => <ul className="list-disc ml-5 space-y-1 my-3" {...props} />,
+                          ol: ({ ...props }) => <ol className="list-decimal ml-5 space-y-1 my-3" {...props} />,
+                          li: ({ ...props }) => <li className="text-gray-700" {...props} />,
+                        }}
+                      >
+                        {step.content}
+                      </ReactMarkdown>
+                    </div>
+
+                    {step.video_url && getYouTubeEmbedUrl(step.video_url) && (
+                      <div className="mt-4 mb-3 aspect-video rounded-xl overflow-hidden bg-black shadow-sm">
+                        <iframe
+                          src={getYouTubeEmbedUrl(step.video_url)!}
+                          className="w-full h-full border-0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    )}
 
                     {step.tip && (
                       <div className="mt-3 flex gap-2.5 bg-blue-50 border border-blue-200 rounded-xl p-3">
@@ -349,9 +387,35 @@ const StepViewer = ({ sopId, steps, initialProgress, userId }: StepViewerProps) 
           </div>
 
           <div className="p-6">
-            <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap">
-              {currentStep.content}
+            <div
+              className="prose prose-sm max-w-none text-gray-700 leading-relaxed
+                prose-headings:text-gray-900 prose-headings:font-bold
+                prose-strong:text-gray-900
+                prose-li:text-gray-700
+                prose-p:text-gray-700"
+            >
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  ul: ({ ...props }) => <ul className="list-disc ml-5 space-y-1 my-3" {...props} />,
+                  ol: ({ ...props }) => <ol className="list-decimal ml-5 space-y-1 my-3" {...props} />,
+                  li: ({ ...props }) => <li className="text-gray-700" {...props} />,
+                }}
+              >
+                {currentStep.content}
+              </ReactMarkdown>
             </div>
+
+            {currentStep.video_url && getYouTubeEmbedUrl(currentStep.video_url) && (
+              <div className="mt-5 mb-5 aspect-video rounded-2xl overflow-hidden bg-black shadow-md border border-gray-200">
+                <iframe
+                  src={getYouTubeEmbedUrl(currentStep.video_url)!}
+                  className="w-full h-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            )}
 
             {currentStep.media && currentStep.media.length > 0 && (
               <StepMedia media={currentStep.media} />

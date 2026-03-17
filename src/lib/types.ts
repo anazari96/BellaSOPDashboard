@@ -77,6 +77,7 @@ export interface SOPStep {
   tip: string | null;
   warning: string | null;
   linked_sop_id: string | null;
+  video_url: string | null;
   created_at: string;
   media?: StepMedia[];
   linked_sop?: { id: string; title: string; category?: { name: string; emoji: string } };
@@ -120,6 +121,70 @@ export interface SOPPresetItem {
   created_at: string;
   sop?: SOP;
 }
+
+// ─── Training System ────────────────────────────────────────
+
+export type TrainingStatus = "pending" | "in_progress" | "completed";
+export type QuestionType = "multiple_choice" | "true_false";
+export type NotePriority = "high" | "medium" | "low";
+
+export interface TrainingSession {
+  id: string;
+  user_id: string;
+  sop_id: string;
+  status: TrainingStatus;
+  review_content: string;
+  score: number | null;
+  total_questions: number;
+  correct_answers: number;
+  created_by: string | null;
+  generated_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  sop?: SOP;
+  questions?: TrainingQuestion[];
+}
+
+export interface QuestionOption {
+  label: string;
+  value: string;
+}
+
+export interface TrainingQuestion {
+  id: string;
+  session_id: string;
+  question_number: number;
+  question_text: string;
+  question_type: QuestionType;
+  options: QuestionOption[];
+  correct_answer: string;
+  explanation: string;
+  related_step_id: string | null;
+}
+
+export interface TrainingAnswer {
+  id: string;
+  question_id: string;
+  user_id: string;
+  selected_option: string;
+  is_correct: boolean;
+  answered_at: string;
+}
+
+export interface AdminStaffNote {
+  id: string;
+  admin_id: string;
+  staff_id: string;
+  sop_id: string | null;
+  note: string;
+  priority: NotePriority;
+  addressed: boolean;
+  created_at: string;
+  sop?: SOP;
+  admin?: Profile;
+}
+
+// ─── Config ─────────────────────────────────────────────────
 
 export const IMPORTANCE_CONFIG: Record<
   SOPImportance,
