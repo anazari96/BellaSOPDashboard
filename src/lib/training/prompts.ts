@@ -69,8 +69,8 @@ function formatStaffContext(ctx: TrainingContext): string {
 }
 
 export function buildGenerationPrompt(ctx: TrainingContext): {
-    prompt: string;
-    outputFormat: ZodType;
+  prompt: string;
+  outputFormat: ZodType;
 } {
   const sopContent = formatSOPContent(ctx);
   const staffContext = formatStaffContext(ctx);
@@ -136,7 +136,7 @@ Respond with valid JSON in this exact format:
 
 Return ONLY the JSON object, no markdown code fences or other text.`;
 
-console.log("prompt", prompt)
+  console.log("prompt", prompt);
 
   const outputFormat = z.object({
     review_content: z.string(),
@@ -158,7 +158,103 @@ console.log("prompt", prompt)
     ),
   });
 
-  return {prompt, outputFormat};
+  return { prompt, outputFormat };
+}
+
+export function buildPresetQuizBatchPrompt(ctx: {
+  sops: (SOP & {
+    steps: SOPStep[];
+    ingredients?: SOPIngredient[];
+    behaviors?: SOPBehavior[];
+  })[];
+}): {
+  prompt: string;
+  outputFormat: ZodType;
+} {
+  const parts: string[] = [];
+
+  for (const sop of ctx.sops) {
+    const content = formatSOPContent({
+      sop,
+      previousWrongStepIds: [],
+      previousScore: null,
+      timesTrainedOnSop: 0,
+      adminNotes: [],
+    });
+
+    parts.push(`
+        <sop_id>${sop.id}</sop_id>
+        <sop_content>
+        ${content}
+        </sop_content>
+    `);
+  }
+
+  const prompt = `You are a training content generator for a cafe/restaurant staff training platform.
+
+    Your task is to generate 4 quiz questions for EACH of the following SOPs (Standard Operating Procedures). 
+
+    IMPORTANT RULES:
+    - Questions must be ONLY multiple_choice (4 options) or true_false (2 options: "True" and "False")
+    - NO free-text or open-ended questions
+    - Each question must have exactly one correct answer
+    - Use simple, clear language appropriate for cafe staff
+    - Focus on the most important safety, quality, or customer service aspects of this SOP.
+
+    ${parts.join("\n")}
+
+    Respond with valid JSON in this exact format:
+    {
+    "sop_quizzes": [
+        {
+        "sop_id": "the_id_from_the_sop_id_tag",
+        "questions": [
+            {
+            "question_number": 1,
+            "question_text": "The question...",
+            "question_type": "multiple_choice",
+            "options": [
+                {"label": "A) First option", "value": "a"},
+                {"label": "B) Second option", "value": "b"},
+                {"label": "C) Third option", "value": "c"},
+                {"label": "D) Fourth option", "value": "d"}
+            ],
+            "correct_answer": "a",
+            "explanation": "Brief explanation of why this is correct...",
+            "related_step_number": 1
+            }
+        ]
+        }
+    ]
+    }
+
+    Return ONLY the JSON object, no markdown code fences or other text.`;
+
+  const outputFormat = z.object({
+    sop_quizzes: z.array(
+      z.object({
+        sop_id: z.string(),
+        questions: z.array(
+          z.object({
+            question_number: z.number(),
+            question_text: z.string(),
+            question_type: z.union([z.literal("multiple_choice"), z.literal("true_false")]),
+            options: z.array(
+              z.object({
+                label: z.string(),
+                value: z.string(),
+              }),
+            ),
+            correct_answer: z.string(),
+            explanation: z.string(),
+            related_step_number: z.number().nullable(),
+          }),
+        ),
+      }),
+    ),
+  });
+
+  return { prompt, outputFormat };
 }
 
 export interface GeneratedQuestion {

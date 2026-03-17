@@ -58,7 +58,7 @@ const StaffNoteForm = ({ staffId, sops, onNoteAdded }: StaffNoteFormProps) => {
         className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-500"
       />
 
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col gap-3">
         <select
           value={sopId}
           onChange={(e) => setSopId(e.target.value)}

@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
 import SOPCard from "@/components/sop/SOPCard";
-import ImportanceBadge from "@/components/sop/ImportanceBadge";
 import type { SOPPreset, SOPPresetItem, StaffProgress } from "@/lib/types";
-import { ArrowLeft, BookOpen, CheckCircle2, Circle, Loader2 } from "lucide-react";
+import { ArrowLeft, BookOpen, CheckCircle2, Circle, Loader2, GraduationCap, ArrowRight } from "lucide-react";
 
 const PresetDetailPage = () => {
   const params = useParams();
@@ -17,7 +16,9 @@ const PresetDetailPage = () => {
   const [items, setItems] = useState<SOPPresetItem[]>([]);
   const [progress, setProgress] = useState<Record<string, StaffProgress[]>>({});
   const [stepCounts, setStepCounts] = useState<Record<string, number>>({});
+  const [questionsCount, setQuestionsCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [startingQuiz, setStartingQuiz] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -26,22 +27,20 @@ const PresetDetailPage = () => {
 
     const load = async () => {
       try {
-        const [presetRes, itemsRes] = await Promise.all([
-          supabase
-            .from("sop_presets")
-            .select("*")
-            .eq("id", id)
-            .single(),
+        const [presetRes, itemsRes, questionsRes] = await Promise.all([
+          supabase.from("sop_presets").select("*").eq("id", id).single(),
           supabase
             .from("sop_preset_items")
             .select(
-              "*, sop:sops(id, title, description, importance, status, sop_type, updated_at, category:categories(name, emoji))"
+              "*, sop:sops(id, title, description, importance, status, sop_type, updated_at, category:categories(name, emoji))",
             )
             .eq("preset_id", id)
             .order("sort_order"),
+          supabase.from("sop_preset_questions").select("id", { count: "exact", head: true }).eq("preset_id", id),
         ]);
 
         if (presetRes.data) setPreset(presetRes.data);
+        if (questionsRes.count !== null) setQuestionsCount(questionsRes.count);
         if (itemsRes.data) {
           setItems(itemsRes.data);
 
@@ -54,23 +53,16 @@ const PresetDetailPage = () => {
                 .from("sop_steps")
                 .select("id", { count: "exact", head: true })
                 .eq("sop_id", sopId)
-                .then(({ count }) => ({ sopId, count: count ?? 0 }))
-            )
+                .then(({ count }) => ({ sopId, count: count ?? 0 })),
+            ),
           );
 
           // Fetch user progress for each SOP
           const progressPromise = user
-            ? supabase
-                .from("staff_progress")
-                .select("*")
-                .eq("user_id", user.id)
-                .in("sop_id", sopIds)
+            ? supabase.from("staff_progress").select("*").eq("user_id", user.id).in("sop_id", sopIds)
             : Promise.resolve({ data: [] });
 
-          const [counts, progressRes] = await Promise.all([
-            stepCountsPromise,
-            progressPromise,
-          ]);
+          const [counts, progressRes] = await Promise.all([stepCountsPromise, progressPromise]);
 
           const countsMap: Record<string, number> = {};
           counts.forEach(({ sopId, count }) => {
@@ -127,8 +119,39 @@ const PresetDetailPage = () => {
     return total > 0 && done >= total;
   }).length;
 
-  const overallPercent =
-    totalSOPs === 0 ? 0 : Math.round((completedSOPs / totalSOPs) * 100);
+  const overallPercent = totalSOPs === 0 ? 0 : Math.round((completedSOPs / totalSOPs) * 100);
+
+  const isPresetFullyRead = totalSOPs > 0 && completedSOPs === totalSOPs;
+
+  const handleStartQuiz = async () => {
+    if (!preset || startingQuiz) return;
+    setStartingQuiz(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const res = await fetch(`/api/presets/${preset.id}/start-quiz`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to start quiz");
+      }
+
+      const { sessionId } = await res.json();
+      router.push(`/training/${sessionId}`);
+    } catch (err) {
+      console.error("Start quiz error:", err);
+      alert(err instanceof Error ? err.message : "Failed to start quiz");
+    } finally {
+      setStartingQuiz(false);
+    }
+  };
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto">
@@ -154,12 +177,8 @@ const PresetDetailPage = () => {
                 {totalSOPs} SOP{totalSOPs !== 1 ? "s" : ""}
               </span>
             </div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-1">
-              {preset.title}
-            </h1>
-            {preset.description && (
-              <p className="text-gray-500 text-sm">{preset.description}</p>
-            )}
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-1">{preset.title}</h1>
+            {preset.description && <p className="text-gray-500 text-sm">{preset.description}</p>}
 
             {/* Overall progress */}
             {totalSOPs > 0 && (
@@ -168,9 +187,7 @@ const PresetDetailPage = () => {
                   <span>
                     {completedSOPs} of {totalSOPs} SOPs completed
                   </span>
-                  <span className="font-medium text-amber-700">
-                    {overallPercent}%
-                  </span>
+                  <span className="font-medium text-amber-700">{overallPercent}%</span>
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                   <div
@@ -189,17 +206,13 @@ const PresetDetailPage = () => {
         {/* Sidebar: ordered list of SOPs */}
         <div className="lg:w-72 shrink-0">
           <div className="bg-white rounded-2xl border border-gray-100 p-4 sticky top-6">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 px-1">
-              In this preset
-            </h2>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 px-1">In this preset</h2>
             <div className="space-y-1">
               {items.map((item, idx) => {
                 const sop = item.sop;
                 if (!sop) return null;
                 const total = stepCounts[item.sop_id] ?? 0;
-                const done = (progress[item.sop_id] ?? []).filter(
-                  (p) => p.completed
-                ).length;
+                const done = (progress[item.sop_id] ?? []).filter((p) => p.completed).length;
                 const isComplete = total > 0 && done >= total;
                 const isActive = activeIndex === idx;
 
@@ -208,26 +221,16 @@ const PresetDetailPage = () => {
                     key={item.id}
                     onClick={() => setActiveIndex(idx)}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${
-                      isActive
-                        ? "bg-amber-50 border border-amber-200"
-                        : "hover:bg-gray-50"
+                      isActive ? "bg-amber-50 border border-amber-200" : "hover:bg-gray-50"
                     }`}
                   >
-                    <span className="shrink-0 text-sm font-bold w-5 text-center text-gray-400">
-                      {idx + 1}
-                    </span>
+                    <span className="shrink-0 text-sm font-bold w-5 text-center text-gray-400">{idx + 1}</span>
                     {isComplete ? (
                       <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
                     ) : (
                       <Circle className="w-4 h-4 text-gray-300 shrink-0" />
                     )}
-                    <span
-                      className={`text-sm truncate ${
-                        isActive
-                          ? "font-medium text-amber-900"
-                          : "text-gray-700"
-                      }`}
-                    >
+                    <span className={`text-sm truncate ${isActive ? "font-medium text-amber-900" : "text-gray-700"}`}>
                       {sop.title}
                     </span>
                     {total > 0 && (
@@ -255,9 +258,7 @@ const PresetDetailPage = () => {
                 const sop = item.sop;
                 if (!sop) return null;
                 const total = stepCounts[item.sop_id] ?? 0;
-                const done = (progress[item.sop_id] ?? []).filter(
-                  (p) => p.completed
-                ).length;
+                const done = (progress[item.sop_id] ?? []).filter((p) => p.completed).length;
                 const isActive = activeIndex === idx;
 
                 return (
@@ -268,9 +269,7 @@ const PresetDetailPage = () => {
                         el.scrollIntoView({ behavior: "smooth", block: "nearest" });
                       }
                     }}
-                    className={`transition-all ${
-                      isActive ? "ring-2 ring-amber-400 rounded-2xl" : ""
-                    }`}
+                    className={`transition-all ${isActive ? "ring-2 ring-amber-400 rounded-2xl" : ""}`}
                     onClick={() => setActiveIndex(idx)}
                   >
                     <div className="relative">
@@ -278,11 +277,7 @@ const PresetDetailPage = () => {
                       <div className="absolute -left-3 -top-3 z-10 w-7 h-7 rounded-full bg-amber-600 text-white text-xs font-bold flex items-center justify-center shadow-sm">
                         {idx + 1}
                       </div>
-                      <SOPCard
-                        sop={sop}
-                        completedSteps={done}
-                        totalSteps={total}
-                      />
+                      <SOPCard sop={sop} completedSteps={done} totalSteps={total} />
                     </div>
                   </div>
                 );
@@ -293,15 +288,32 @@ const PresetDetailPage = () => {
       </div>
 
       {/* Completion banner */}
-      {totalSOPs > 0 && completedSOPs === totalSOPs && (
+      {isPresetFullyRead && (
         <div className="mt-8 bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
           <span className="text-4xl block mb-2">🎉</span>
-          <h3 className="text-lg font-bold text-green-800 mb-1">
-            Preset Complete!
-          </h3>
-          <p className="text-green-700 text-sm">
+          <h3 className="text-lg font-bold text-green-800 mb-1">Preset Complete!</h3>
+          <p className="text-green-700 text-sm mb-6">
             You&apos;ve read all {totalSOPs} SOPs in &quot;{preset.title}&quot;. Great work!
           </p>
+
+          {questionsCount > 0 ? (
+            <div className="max-w-md mx-auto">
+              <p className="text-sm text-green-600 mb-4">
+                Now you can test your knowledge with the preset quiz. You need at least 80% to pass.
+              </p>
+              <button
+                onClick={handleStartQuiz}
+                disabled={startingQuiz}
+                className="flex items-center justify-center gap-2 w-full bg-amber-600 text-white py-3.5 rounded-xl font-bold text-sm hover:bg-amber-700 transition-all disabled:opacity-50"
+              >
+                {startingQuiz ? <Loader2 className="w-5 h-5 animate-spin" /> : <GraduationCap className="w-5 h-5" />}
+                Start Preset Quiz
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 italic">No quiz available for this preset yet.</p>
+          )}
         </div>
       )}
     </div>

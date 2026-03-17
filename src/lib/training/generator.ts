@@ -169,7 +169,7 @@ async function gatherTrainingContext(supabase: SupabaseClient, userId: string, s
   };
 }
 
-async function callClaude(prompt: string, outputFormat?: ZodType): Promise<GeneratedTrainingContent> {
+export async function callClaude(prompt: string, outputFormat?: ZodType): Promise<any> {
   const client = getAnthropicClient();
 
   const response = await client.messages.parse({
@@ -186,13 +186,38 @@ async function callClaude(prompt: string, outputFormat?: ZodType): Promise<Gener
       : {}),
   });
 
-  const parsed = response.parsed_output!
+  const parsed = response.parsed_output!;
 
   if (!parsed) {
     throw new Error("Invalid training content structure from Claude");
   }
 
   return parsed;
+}
+
+export async function callClaudeBatch(batches: { prompt: string; outputFormat?: ZodType }[]): Promise<any> {
+  const client = getAnthropicClient();
+
+  const response = await client.messages.batches.create({
+    requests: batches.map((batch, i) => ({
+      custom_id: `${i}`,
+      params: {
+        model: "claude-haiku-4-5",
+        max_tokens: 4096,
+        messages: [{ role: "user", content: batch.prompt }],
+        temperature: 0.6,
+        ...(batch.outputFormat
+          ? {
+              output_config: {
+                format: zodOutputFormat(batch.outputFormat),
+              },
+            }
+          : {}),
+      },
+    })),
+  });
+
+  return response.id;
 }
 
 export async function generateTrainingSession(
@@ -258,7 +283,7 @@ export async function generateTrainingSession(
   }
 
   // Insert questions
-  const questionsToInsert = content.questions.map((q) => ({
+  const questionsToInsert = content.questions.map((q: any) => ({
     session_id: session.id,
     question_number: q.question_number,
     question_text: q.question_text,

@@ -5,7 +5,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import Link from "next/link";
 import type { SOPPreset } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
-import { Plus, Edit3, Trash2, Search, Globe, FileText } from "lucide-react";
+import { Plus, Edit3, Trash2, Search, Globe, FileText, BrainCircuit, Loader2 } from "lucide-react";
 
 const AdminPresetsPage = () => {
   const { supabase, loading: authLoading } = useAuth();
@@ -13,12 +13,13 @@ const AdminPresetsPage = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [generating, setGenerating] = useState<string | null>(null);
 
   const fetchPresets = async () => {
     try {
       let query = supabase
         .from("sop_presets")
-        .select("*, items:sop_preset_items(id)")
+        .select("*, items:sop_preset_items(id), questions:sop_preset_questions(id)")
         .order("updated_at", { ascending: false });
 
       if (search.trim()) {
@@ -62,6 +63,34 @@ const AdminPresetsPage = () => {
     setPresets((prev) =>
       prev.map((p) => (p.id === preset.id ? { ...p, status: newStatus } : p))
     );
+  };
+
+  const handleGenerateQuiz = async (presetId: string) => {
+    setGenerating(presetId);
+    try {
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      
+      const res = await fetch(`/api/admin/presets/${presetId}/generate-quiz`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authSession?.access_token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to generate quiz");
+      }
+
+      const result = await res.json();
+      alert(`Successfully generated ${result.count} questions for this preset.`);
+      fetchPresets(); // Refresh to show question count
+    } catch (err) {
+      console.error("Generate quiz error:", err);
+      alert(err instanceof Error ? err.message : "Failed to generate quiz");
+    } finally {
+      setGenerating(null);
+    }
   };
 
   return (
@@ -133,9 +162,32 @@ const AdminPresetsPage = () => {
                 <p className="text-xs text-gray-400 mt-0.5">
                   Updated {formatDate(preset.updated_at)}
                 </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 ${
+                    (preset as any).questions?.length > 0 
+                      ? "bg-blue-50 text-blue-700 border border-blue-200" 
+                      : "bg-gray-100 text-gray-500 border border-gray-200"
+                  }`}>
+                    <BrainCircuit className="w-3 h-3" />
+                    {(preset as any).questions?.length ?? 0} Questions
+                  </span>
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleGenerateQuiz(preset.id)}
+                  disabled={generating === preset.id}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-all disabled:opacity-50 flex items-center gap-1.5"
+                  title="Generate Quiz with AI"
+                >
+                  {generating === preset.id ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <BrainCircuit className="w-3.5 h-3.5" />
+                  )}
+                  {generating === preset.id ? "Generating..." : "Generate Quiz"}
+                </button>
                 <button
                   onClick={() => togglePublish(preset)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${

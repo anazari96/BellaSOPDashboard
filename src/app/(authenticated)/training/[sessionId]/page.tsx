@@ -107,8 +107,12 @@ const TrainingSessionPage = () => {
     async (correctCount: number) => {
       if (!session || !user) return;
 
-      const score = Math.round((correctCount / questions.length) * 100);
+      const totalQuestions = questions.length;
+      const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+      const passMark = session.preset_id ? 80 : 70;
+      const passed = score >= passMark;
 
+      // Update session status
       await supabase
         .from("training_sessions")
         .update({
@@ -118,6 +122,22 @@ const TrainingSessionPage = () => {
           completed_at: new Date().toISOString(),
         })
         .eq("id", sessionId);
+
+      // If it's a preset quiz and they failed, reset their progress
+      if (session.preset_id && !passed) {
+        try {
+          const { data: { session: authSession } } = await supabase.auth.getSession();
+          
+          await fetch(`/api/presets/${session.preset_id}/reset-progress`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${authSession?.access_token}`,
+            },
+          });
+        } catch (err) {
+          console.error("Failed to reset preset progress:", err);
+        }
+      }
 
       // Reload answers for results display
       const { data: allAnswers } = await supabase
@@ -209,6 +229,7 @@ const TrainingSessionPage = () => {
           correctAnswers={session.correct_answers}
           questions={questions}
           answers={answers}
+          presetId={session.preset_id}
         />
       )}
     </div>

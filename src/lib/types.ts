@@ -141,8 +141,23 @@ export interface TrainingSession {
   generated_at: string;
   started_at: string | null;
   completed_at: string | null;
+  preset_id?: string;
   sop?: SOP;
   questions?: TrainingQuestion[];
+}
+
+export interface SOPPresetQuestion {
+  id: string;
+  preset_id: string;
+  sop_id: string;
+  question_number: number;
+  question_text: string;
+  question_type: QuestionType;
+  options: QuestionOption[];
+  correct_answer: string;
+  explanation: string;
+  related_step_id: string | null;
+  created_at: string;
 }
 
 export interface QuestionOption {

@@ -11,6 +11,8 @@ interface ResultsSectionProps {
   correctAnswers: number;
   questions: TrainingQuestion[];
   answers: TrainingAnswer[];
+  presetId?: string;
+  onResetProgress?: () => Promise<void>;
 }
 
 const ResultsSection = ({
@@ -20,9 +22,12 @@ const ResultsSection = ({
   correctAnswers,
   questions,
   answers,
+  presetId,
+  onResetProgress,
 }: ResultsSectionProps) => {
   const score = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
-  const passed = score >= 70;
+  const passMark = presetId ? 80 : 70;
+  const passed = score >= passMark;
 
   const answerMap = new Map(answers.map((a) => [a.question_id, a]));
 
@@ -50,10 +55,10 @@ const ResultsSection = ({
             passed ? "text-green-700" : "text-orange-700"
           }`}
         >
-          {passed ? "Great job!" : "Keep practicing!"}
+          {passed ? "Great job!" : presetId ? "You didn't pass. Re-read the preset and try again." : "Keep practicing!"}
         </p>
         <p className="text-sm text-gray-500 mt-2">
-          {correctAnswers} out of {totalQuestions} correct
+          {correctAnswers} out of {totalQuestions} correct {presetId && `(80% required to pass)`}
         </p>
       </div>
 
@@ -98,20 +103,32 @@ const ResultsSection = ({
 
       {/* Actions */}
       <div className="space-y-3">
-        <Link
-          href={`/sops/${sopId}`}
-          className="flex items-center justify-center gap-2 w-full bg-white text-gray-700 py-3 rounded-xl font-semibold text-sm border border-gray-200 hover:bg-gray-50 transition-colors"
-        >
-          <BookOpen className="w-4 h-4" />
-          Review Full SOP: {sopTitle}
-        </Link>
-        <Link
-          href="/dashboard"
-          className="flex items-center justify-center gap-2 w-full bg-amber-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-amber-700 transition-colors"
-        >
-          Back to Dashboard
-          <ArrowRight className="w-4 h-4" />
-        </Link>
+        {presetId ? (
+          <Link
+            href={`/presets/${presetId}`}
+            className="flex items-center justify-center gap-2 w-full bg-amber-600 text-white py-3.5 rounded-xl font-bold text-sm hover:bg-amber-700 transition-colors"
+          >
+            {passed ? "Back to Preset" : "Return to Preset and Re-read"}
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        ) : (
+          <>
+            <Link
+              href={`/sops/${sopId}`}
+              className="flex items-center justify-center gap-2 w-full bg-white text-gray-700 py-3 rounded-xl font-semibold text-sm border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              <BookOpen className="w-4 h-4" />
+              Review Full SOP: {sopTitle}
+            </Link>
+            <Link
+              href="/dashboard"
+              className="flex items-center justify-center gap-2 w-full bg-amber-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-amber-700 transition-colors"
+            >
+              Back to Dashboard
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </>
+        )}
       </div>
     </div>
   );
