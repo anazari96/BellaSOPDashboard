@@ -13,6 +13,7 @@ const Sidebar = () => {
     { href: "/dashboard", label: "Dashboard", emoji: "🏠" },
     { href: "/sops", label: "Browse SOPs", emoji: "📋" },
     { href: "/presets", label: "Presets", emoji: "📚" },
+    { href: "/ask", label: "Ask Anything", emoji: "💬" },
   ];
 
   const staffLinks = [

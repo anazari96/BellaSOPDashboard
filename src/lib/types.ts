@@ -199,6 +199,24 @@ export interface AdminStaffNote {
   admin?: Profile;
 }
 
+// ─── Ask Me Anything (RAG) ─────────────────────────────────
+
+export interface SOPReference {
+  sop_id: string;
+  title: string;
+  category?: string;
+  emoji?: string;
+}
+
+export interface QALogEntry {
+  id: string;
+  user_id: string;
+  question: string;
+  answer: string;
+  sop_references: SOPReference[];
+  created_at: string;
+}
+
 // ─── Config ─────────────────────────────────────────────────
 
 export const IMPORTANCE_CONFIG: Record<

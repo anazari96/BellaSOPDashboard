@@ -6,7 +6,7 @@ import Link from "next/link";
 import ImportanceBadge from "@/components/sop/ImportanceBadge";
 import type { SOP } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
-import { Plus, Edit3, Eye, Trash2, Search } from "lucide-react";
+import { Plus, Edit3, Eye, Trash2, Search, Sparkles, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
 const AdminSOPListPage = () => {
   const { supabase, loading: authLoading } = useAuth();
@@ -14,6 +14,9 @@ const AdminSOPListPage = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [embedding, setEmbedding] = useState(false);
+  const [embedResult, setEmbedResult] = useState<{ updated: number; skipped: number } | null>(null);
+  const [embedError, setEmbedError] = useState<string | null>(null);
 
   const fetchSops = async () => {
     try {
@@ -51,6 +54,30 @@ const AdminSOPListPage = () => {
     setDeleting(null);
   };
 
+  const handleEmbedSops = async () => {
+    setEmbedding(true);
+    setEmbedResult(null);
+    setEmbedError(null);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/api/embed-sops", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Embedding failed");
+      setEmbedResult({ updated: json.updatedSops ?? 0, skipped: json.skipped ?? 0 });
+    } catch (err) {
+      setEmbedError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setEmbedding(false);
+    }
+  };
+
   const togglePublish = async (sop: SOP) => {
     const newStatus = sop.status === "published" ? "draft" : "published";
     await supabase.from("sops").update({ status: newStatus }).eq("id", sop.id);
@@ -68,14 +95,56 @@ const AdminSOPListPage = () => {
             Create, edit, and publish your standard operating procedures
           </p>
         </div>
-        <Link
-          href="/admin/sops/new"
-          className="inline-flex items-center gap-2 bg-amber-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-amber-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">New SOP</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleEmbedSops}
+            disabled={embedding}
+            title="Embed all SOPs that are new or changed since last index"
+            className="inline-flex items-center gap-2 bg-violet-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-violet-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {embedding ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
+            <span className="hidden sm:inline">{embedding ? "Indexing…" : "Embed SOPs"}</span>
+          </button>
+          <Link
+            href="/admin/sops/new"
+            className="inline-flex items-center gap-2 bg-amber-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-amber-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">New SOP</span>
+          </Link>
+        </div>
       </div>
+
+      {/* Embed result banner */}
+      {embedResult && !embedding && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm">
+          <CheckCircle2 className="w-4 h-4 text-violet-600 flex-shrink-0" />
+          <span className="text-violet-800">
+            <strong>{embedResult.updated} SOP{embedResult.updated !== 1 ? "s" : ""}</strong> indexed
+            {embedResult.skipped > 0 && (
+              <>, <strong>{embedResult.skipped}</strong> already up to date</>
+            )}
+          </span>
+          <button
+            onClick={() => setEmbedResult(null)}
+            className="ml-auto text-violet-400 hover:text-violet-600"
+          >✕</button>
+        </div>
+      )}
+      {embedError && !embedding && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm">
+          <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+          <span className="text-red-700">{embedError}</span>
+          <button
+            onClick={() => setEmbedError(null)}
+            className="ml-auto text-red-400 hover:text-red-600"
+          >✕</button>
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative mb-6">

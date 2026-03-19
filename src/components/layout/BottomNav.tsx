@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, BookOpen, BarChart3, User, Settings, Library, GraduationCap } from "lucide-react";
+import { LayoutDashboard, BookOpen, BarChart3, User, Settings, Library, GraduationCap, MessageCircle } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 
 const BottomNav = () => {
@@ -12,7 +12,7 @@ const BottomNav = () => {
   const staffLinks = [
     { href: "/dashboard", label: "Home", icon: LayoutDashboard, emoji: "🏠" },
     { href: "/sops", label: "SOPs", icon: BookOpen, emoji: "📋" },
-    { href: "/presets", label: "Presets", icon: Library, emoji: "📚" },
+    { href: "/ask", label: "Ask", icon: MessageCircle, emoji: "💬" },
     { href: "/training", label: "Training", icon: GraduationCap, emoji: "🎓" },
     { href: "/profile", label: "Profile", icon: User, emoji: "👤" },
   ];
@@ -20,7 +20,7 @@ const BottomNav = () => {
   const adminLinks = [
     { href: "/dashboard", label: "Home", icon: LayoutDashboard, emoji: "🏠" },
     { href: "/sops", label: "SOPs", icon: BookOpen, emoji: "📋" },
-    { href: "/presets", label: "Presets", icon: Library, emoji: "📚" },
+    { href: "/ask", label: "Ask", icon: MessageCircle, emoji: "💬" },
     { href: "/admin/sops", label: "Manage", icon: Settings, emoji: "⚙️" },
     { href: "/profile", label: "Profile", icon: User, emoji: "👤" },
   ];
