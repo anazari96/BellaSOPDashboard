@@ -10,6 +10,8 @@ export interface Profile {
   full_name: string;
   role: UserRole;
   avatar_url: string | null;
+  is_approved: boolean;
+  terms_accepted: boolean;
   created_at: string;
 }
 

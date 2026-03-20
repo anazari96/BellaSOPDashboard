@@ -11,7 +11,6 @@ const RegisterPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState<"staff" | "admin">("staff");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -28,7 +27,7 @@ const RegisterPage = () => {
       options: {
         data: {
           full_name: fullName,
-          role,
+          role: "staff",
         },
       },
     });
@@ -124,35 +123,7 @@ const RegisterPage = () => {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Role
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setRole("staff")}
-                className={`px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                  role === "staff"
-                    ? "border-amber-400 bg-amber-50 text-amber-700"
-                    : "border-gray-200 text-gray-600 hover:border-gray-300"
-                }`}
-              >
-                👤 Staff
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole("admin")}
-                className={`px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
-                  role === "admin"
-                    ? "border-amber-400 bg-amber-50 text-amber-700"
-                    : "border-gray-200 text-gray-600 hover:border-gray-300"
-                }`}
-              >
-                🛡️ Admin
-              </button>
-            </div>
-          </div>
+
 
           <button
             type="submit"

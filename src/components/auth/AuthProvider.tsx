@@ -20,7 +20,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   isAdmin: false,
   supabase: createClient(),
-  signOut: async () => {},
+  signOut: async () => { },
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         const { data, error } = await supabase
           .from("profiles")
-          .select("id, full_name, role, avatar_url, created_at")
+          .select("id, full_name, role, avatar_url, is_approved, terms_accepted, created_at")
           .eq("id", userId)
           .abortSignal(abortController.signal)
           .single();
