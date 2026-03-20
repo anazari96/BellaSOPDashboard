@@ -6,7 +6,8 @@ import Link from "next/link";
 import ImportanceBadge from "@/components/sop/ImportanceBadge";
 import type { SOP } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
-import { Plus, Edit3, Eye, Trash2, Search, Sparkles, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Plus, Edit3, Eye, Trash2, Search, Sparkles, Loader2, CheckCircle2, AlertCircle, Bell } from "lucide-react";
+import ManualPushModal from "@/components/admin/ManualPushModal";
 
 const AdminSOPListPage = () => {
   const { supabase, loading: authLoading } = useAuth();
@@ -17,6 +18,7 @@ const AdminSOPListPage = () => {
   const [embedding, setEmbedding] = useState(false);
   const [embedResult, setEmbedResult] = useState<{ updated: number; skipped: number } | null>(null);
   const [embedError, setEmbedError] = useState<string | null>(null);
+  const [pushModalSop, setPushModalSop] = useState<SOP | null>(null);
 
   const fetchSops = async () => {
     try {
@@ -201,6 +203,14 @@ const AdminSOPListPage = () => {
                   {sop.status === "published" ? "✅ Published" : "📝 Draft"}
                 </button>
 
+                <button
+                  onClick={() => setPushModalSop(sop)}
+                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                  title="Send Push Notification"
+                >
+                  <Bell className="w-4 h-4" />
+                </button>
+
                 <Link
                   href={`/sops/${sop.id}`}
                   className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
@@ -243,6 +253,13 @@ const AdminSOPListPage = () => {
           </Link>
         </div>
       )}
+
+      {/* Manual Push Modal */}
+      <ManualPushModal
+        isOpen={!!pushModalSop}
+        onClose={() => setPushModalSop(null)}
+        defaultTitle={pushModalSop?.title}
+      />
     </div>
   );
 };

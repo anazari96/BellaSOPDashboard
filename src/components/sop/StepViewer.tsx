@@ -92,7 +92,7 @@ const StepViewer = ({ sopId, steps, initialProgress, userId }: StepViewerProps) 
     }, 150);
   };
 
-  const ViewToggle = () => (
+  const viewToggleButtons = (
     <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
       <button
         onClick={() => setViewMode("steps")}
@@ -135,7 +135,7 @@ const StepViewer = ({ sopId, steps, initialProgress, userId }: StepViewerProps) 
               </span>
             )}
           </div>
-          <ViewToggle />
+          {viewToggleButtons}
         </div>
 
         <div className="space-y-4">
@@ -308,7 +308,7 @@ const StepViewer = ({ sopId, steps, initialProgress, userId }: StepViewerProps) 
     return (
       <div className="max-w-2xl mx-auto">
         <div className="flex justify-end mb-4">
-          <ViewToggle />
+          {viewToggleButtons}
         </div>
         <div className="text-center py-12 px-6">
           <div className="text-6xl mb-4">🎉</div>
@@ -341,7 +341,7 @@ const StepViewer = ({ sopId, steps, initialProgress, userId }: StepViewerProps) 
         <div className="flex-1">
           <ProgressBar completed={completedCount} total={steps.length} />
         </div>
-        <ViewToggle />
+        {viewToggleButtons}
       </div>
 
       {/* Step indicators */}

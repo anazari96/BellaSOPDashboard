@@ -1,6 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { buildPresetQuizBatchPrompt } from "../training/prompts";
-import { callClaude, callClaudeBatch } from "../training/generator";
+import { callClaude } from "../training/generator";
 import { SOP, SOPStep, SOPIngredient, SOPBehavior } from "../types";
 
 export async function generatePresetQuiz(supabase: SupabaseClient, presetId: string) {
@@ -49,6 +49,7 @@ export async function generatePresetQuiz(supabase: SupabaseClient, presetId: str
   const allGeneratedQuestions: {
     sopId: string;
     steps: SOPStep[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     questions: any[];
   }[] = [];
 

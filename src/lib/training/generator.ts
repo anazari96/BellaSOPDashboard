@@ -169,6 +169,7 @@ async function gatherTrainingContext(supabase: SupabaseClient, userId: string, s
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function callClaude(prompt: string, outputFormat?: ZodType): Promise<any> {
   const client = getAnthropicClient();
 
@@ -195,6 +196,7 @@ export async function callClaude(prompt: string, outputFormat?: ZodType): Promis
   return parsed;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function callClaudeBatch(batches: { prompt: string; outputFormat?: ZodType }[]): Promise<any> {
   const client = getAnthropicClient();
 
@@ -283,7 +285,8 @@ export async function generateTrainingSession(
   }
 
   // Insert questions
-  const questionsToInsert = content.questions.map((q: any) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const questionsToInsert = (content as any).questions.map((q: any) => ({
     session_id: session.id,
     question_number: q.question_number,
     question_text: q.question_text,

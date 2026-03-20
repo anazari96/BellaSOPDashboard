@@ -21,8 +21,7 @@ const BottomNav = () => {
     { href: "/dashboard", label: "Home", icon: LayoutDashboard, emoji: "🏠" },
     { href: "/sops", label: "SOPs", icon: BookOpen, emoji: "📋" },
     { href: "/ask", label: "Ask", icon: MessageCircle, emoji: "💬" },
-    { href: "/admin/sops", label: "Manage", icon: Settings, emoji: "⚙️" },
-    { href: "/profile", label: "Profile", icon: User, emoji: "👤" },
+    { href: "/admin", label: "Admin", icon: Settings, emoji: "⚙️" },
   ];
 
   const links = isAdmin ? adminLinks : staffLinks;

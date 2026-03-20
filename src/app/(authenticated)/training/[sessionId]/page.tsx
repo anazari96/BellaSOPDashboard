@@ -139,6 +139,21 @@ const TrainingSessionPage = () => {
         }
       }
 
+      // Notify admins
+      try {
+        await fetch("/api/notifications/training-complete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sopTitle: session.sop?.title,
+            presetId: session.preset_id,
+            passed,
+          }),
+        });
+      } catch (notifyErr) {
+        console.error("Failed to trigger completion notification:", notifyErr);
+      }
+
       // Reload answers for results display
       const { data: allAnswers } = await supabase
         .from("training_answers")

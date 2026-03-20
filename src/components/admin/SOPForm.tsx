@@ -487,6 +487,19 @@ const SOPForm = ({ sopId }: SOPFormProps) => {
         await Promise.all(typeInserts);
       }
 
+      // Add to our batch notification queue if published
+      if (publishNow || data.status === "published") {
+        try {
+          await fetch("/api/notifications/queue-sop", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sopId: savedSopId }),
+          });
+        } catch (queueErr) {
+          console.error("Failed to queue SOP for notification", queueErr);
+        }
+      }
+
       clearDraft();
       setSaving(false);
       router.push("/admin/sops");

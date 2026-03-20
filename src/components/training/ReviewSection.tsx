@@ -48,7 +48,7 @@ const ReviewSection = ({ sopTitle, reviewContent, onReady }: ReviewSectionProps)
         onClick={onReady}
         className="w-full flex items-center justify-center gap-2 bg-amber-600 text-white py-4 rounded-xl font-semibold text-sm hover:bg-amber-700 transition-colors"
       >
-        I'm Ready for the Quiz
+        I&apos;m Ready for the Quiz
         <ArrowRight className="w-4 h-4" />
       </button>
     </div>
