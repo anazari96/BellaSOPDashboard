@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: "Bella SOP Dashboard",
   description: "Standard Operating Procedures for your cafe team",
   manifest: "/manifest.json",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1", // Prevent zoom on input focus
 };
 
 const RootLayout = ({ children }: { children: React.ReactNode }) => {

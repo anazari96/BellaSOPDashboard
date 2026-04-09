@@ -8,7 +8,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 interface QuizSectionProps {
   sessionId: string;
   questions: TrainingQuestion[];
-  onComplete: (correctCount: number) => void;
+  onComplete: (correctCount: number) => Promise<void>;
 }
 
 const QuizSection = ({ sessionId, questions, onComplete }: QuizSectionProps) => {
@@ -18,6 +18,7 @@ const QuizSection = ({ sessionId, questions, onComplete }: QuizSectionProps) => 
   const [isAnswered, setIsAnswered] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [animating, setAnimating] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const currentQuestion = questions[currentIndex];
   const isCorrect = selectedOption === currentQuestion.correct_answer;
@@ -51,8 +52,10 @@ const QuizSection = ({ sessionId, questions, onComplete }: QuizSectionProps) => 
 
   const handleNext = useCallback(() => {
     if (isLast) {
-      const finalCorrect = correctCount + (isCorrect ? 0 : 0);
-      onComplete(correctCount);
+      setSubmitting(true);
+      onComplete(correctCount).then(() => {
+        setSubmitting(false);
+      });
       return;
     }
 
@@ -107,9 +110,8 @@ const QuizSection = ({ sessionId, questions, onComplete }: QuizSectionProps) => 
 
       {/* Question */}
       <div
-        className={`transition-opacity duration-200 ${
-          animating ? "opacity-0" : "opacity-100"
-        }`}
+        className={`transition-opacity duration-200 ${animating ? "opacity-0" : "opacity-100"
+          }`}
       >
         <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-4">
           <div className="flex items-start gap-3 mb-5">
@@ -157,11 +159,10 @@ const QuizSection = ({ sessionId, questions, onComplete }: QuizSectionProps) => 
         {/* Explanation (shown after answering) */}
         {isAnswered && (
           <div
-            className={`rounded-2xl border p-5 mb-4 ${
-              isCorrect
-                ? "bg-green-50 border-green-200"
-                : "bg-red-50 border-red-200"
-            }`}
+            className={`rounded-2xl border p-5 mb-4 ${isCorrect
+              ? "bg-green-50 border-green-200"
+              : "bg-red-50 border-red-200"
+              }`}
           >
             <div className="flex items-center gap-2 mb-2">
               {isCorrect ? (
@@ -170,17 +171,15 @@ const QuizSection = ({ sessionId, questions, onComplete }: QuizSectionProps) => 
                 <XCircle className="w-5 h-5 text-red-500" />
               )}
               <span
-                className={`font-semibold text-sm ${
-                  isCorrect ? "text-green-700" : "text-red-700"
-                }`}
+                className={`font-semibold text-sm ${isCorrect ? "text-green-700" : "text-red-700"
+                  }`}
               >
                 {isCorrect ? "Correct!" : "Not quite right"}
               </span>
             </div>
             <p
-              className={`text-sm ${
-                isCorrect ? "text-green-700" : "text-red-700"
-              }`}
+              className={`text-sm ${isCorrect ? "text-green-700" : "text-red-700"
+                }`}
             >
               {currentQuestion.explanation}
             </p>
@@ -191,9 +190,10 @@ const QuizSection = ({ sessionId, questions, onComplete }: QuizSectionProps) => 
         {isAnswered && (
           <button
             onClick={handleNext}
-            className="w-full flex items-center justify-center gap-2 bg-amber-600 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-amber-700 transition-colors"
+            disabled={submitting}
+            className={`w-full flex items-center justify-center gap-2 bg-amber-600 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-amber-700 transition-colors ${submitting ? "opacity-50 cursor-not-allowed" : ""}`}
           >
-            {isLast ? "See Results" : "Next Question"}
+            {submitting ? "Submitting..." : isLast ? "See Results" : "Next Question"}
             <ArrowRight className="w-4 h-4" />
           </button>
         )}

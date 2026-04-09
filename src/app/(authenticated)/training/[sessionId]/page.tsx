@@ -14,7 +14,6 @@ type Phase = "review" | "quiz" | "results";
 
 const TrainingSessionPage = () => {
   const params = useParams();
-  const router = useRouter();
   const { supabase, user, loading: authLoading } = useAuth();
 
   const sessionId = params.sessionId as string;
@@ -127,7 +126,7 @@ const TrainingSessionPage = () => {
       if (session.preset_id && !passed) {
         try {
           const { data: { session: authSession } } = await supabase.auth.getSession();
-          
+
           await fetch(`/api/presets/${session.preset_id}/reset-progress`, {
             method: "POST",
             headers: {

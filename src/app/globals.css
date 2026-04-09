@@ -4,6 +4,12 @@
   body {
     @apply bg-gray-50 text-gray-900 antialiased;
   }
+  
+  /* Prevent zoom on input focus and increase font size */
+  input, textarea, select {
+    font-size: 16px !important; /* Prevents iOS Safari zoom */
+    @apply text-base;
+  }
 }
 
 @layer utilities {
